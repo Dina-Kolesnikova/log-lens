@@ -67,14 +67,14 @@ load();
 /* ---------------- appearance ---------------- */
 
 const THEME_DEFAULTS = {
-  accent: '#4653c6',
-  text: '#1f2430',
-  key: '#7c3aed',
-  string: '#0a7d33',
-  number: '#1259c9',
-  boolean: '#c25607',
-  bg: '#ffffff',
-  barBg: '#f0f3f7',
+  accent: '#c96f2e',
+  text: '#3a2f21',
+  key: '#b4531b',
+  string: '#557a4e',
+  number: '#c2601d',
+  boolean: '#8c5e2a',
+  bg: '#faf4e6',
+  barBg: '#eee3cb',
   fontSize: 12,
 };
 

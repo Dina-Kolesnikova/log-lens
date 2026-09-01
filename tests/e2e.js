@@ -119,8 +119,8 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   t('theme: key color applied', keyColor === 'rgb(255, 0, 0)');
   const fs = await page.locator('.ll-root').first().evaluate((el) => getComputedStyle(el).fontSize);
   t('theme: font size applied', fs === '15px');
-  const brandColor = await page.locator('.ll-brand').first().evaluate((el) => getComputedStyle(el).color);
-  t('theme: accent applied to brand', brandColor === 'rgb(0, 128, 0)');
+  const brandBg = await page.locator('.ll-brand-icon').first().evaluate((el) => getComputedStyle(el).backgroundColor);
+  t('theme: accent applied to brand icon', brandBg === 'rgb(0, 128, 0)');
   // invalid values are ignored (no CSS injection, no crash)
   await page.evaluate(() => window.LogLens.applyTheme({ key: 'red;} body{display:none', fontSize: 99 }));
   t('theme: invalid values ignored', await page.locator('body:visible').count() === 1 &&

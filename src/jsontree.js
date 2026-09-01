@@ -188,11 +188,11 @@
       if (expand) {
         if (!kids.__filled) this.fillChildren(node, kids);
         kids.hidden = false;
-        tg.textContent = '▾';
+        tg.textContent = '▼';
         if (prev) prev.hidden = true;
       } else {
         kids.hidden = true;
-        tg.textContent = '▸';
+        tg.textContent = '▶';
         if (prev) prev.hidden = false;
       }
     }
@@ -418,6 +418,8 @@
     const rootEl = el('div', 'll-root' + (opts.full ? ' ll-full' : ''));
     const bar = el('div', 'll-bar');
     const body = el('div', 'll-body');
+    const main = el('div', 'll-main');
+    const treePane = el('div', 'll-treepane');
     const rawPre = el('pre', 'll-raw');
     rawPre.hidden = true;
     rawPre.textContent = input.rawText || '';
@@ -425,55 +427,202 @@
     const trees = [];
     for (const seg of input.segments) {
       if (seg.type === 'text') {
-        body.appendChild(el('pre', 'll-textseg', seg.text));
+        treePane.appendChild(el('pre', 'll-textseg', seg.text));
       } else {
         const holder = el('div', 'll-seg');
-        body.appendChild(holder);
+        treePane.appendChild(holder);
         trees.push(new Tree(holder, seg.value));
       }
     }
     trees.forEach((t) => t.expandToDepth(2));
 
     /* toolbar */
-    const brand = el('span', 'll-brand', '⌕ Log Lens');
+    const brand = el('span', 'll-brand');
+    brand.appendChild(el('span', 'll-brand-icon', '⌕'));
+    brand.appendChild(el('span', 'll-brand-name', 'Log Lens'));
+
+    const tbtn = (label, title, cls) => {
+      const b = el('button', 'll-btn2' + (cls ? ' ' + cls : ''), label);
+      b.title = title;
+      return b;
+    };
+
+    // search pill absorbs the match counter and prev/next
+    const searchWrap = el('span', 'll-searchwrap');
     const searchIn = el('input', 'll-search');
     searchIn.type = 'search';
     searchIn.placeholder = 'search keys & values…';
     const count = el('span', 'll-count', '');
-    const tbtn = (label, title) => {
-      const b = el('button', 'll-btn2', label);
-      b.title = title;
-      return b;
-    };
-    const bPrev = tbtn('◀', 'Previous match (Shift+Enter)');
-    const bNext = tbtn('▶', 'Next match (Enter)');
+    const bPrev = tbtn('‹', 'Previous match (Shift+Enter)', 'll-nav');
+    const bNext = tbtn('›', 'Next match (Enter)', 'll-nav');
+    searchWrap.appendChild(el('span', 'll-searchicon', '⌕'));
+    searchWrap.appendChild(searchIn);
+    searchWrap.appendChild(count);
+    searchWrap.appendChild(bPrev);
+    searchWrap.appendChild(bNext);
+
     const filterLbl = el('label', 'll-filterlbl');
     const filterCb = document.createElement('input');
     filterCb.type = 'checkbox';
     filterLbl.appendChild(filterCb);
     filterLbl.appendChild(document.createTextNode(' matches only'));
-    const sep = () => el('span', 'll-sep', '');
+
+    const group = el('span', 'll-group');
     const b1 = tbtn('1', 'Expand to depth 1');
     const b2 = tbtn('2', 'Expand to depth 2');
     const b3 = tbtn('3', 'Expand to depth 3');
     const bAll = tbtn('all', 'Expand everything (capped on huge payloads)');
     const bCol = tbtn('−', 'Collapse all');
+    [b1, b2, b3, bAll, bCol].forEach((x) => group.appendChild(x));
+
     const bCopy = tbtn('copy JSON', 'Copy the full JSON (pretty-printed)');
     const bRaw = tbtn('raw', 'Toggle original raw text');
 
-    const items = [brand, searchIn, count, bPrev, bNext, filterLbl, sep(), b1, b2, b3, bAll, bCol, sep(), bCopy, bRaw];
+    const items = [brand, searchWrap, filterLbl, group, el('span', 'll-spacer'), bCopy, bRaw];
     if (opts.onPowerOff) {
-      const bOff = tbtn('off', 'Switch this site back to the original log view (re-enable via the floating pill or the toolbar popup)');
-      bOff.classList.add('ll-power');
+      const bOff = tbtn('off', 'Switch this site back to the original log view (re-enable via the floating pill or the toolbar popup)', 'll-power');
       bOff.addEventListener('click', () => opts.onPowerOff());
-      items.push(sep(), bOff);
+      items.push(bOff);
     }
     items.forEach((x) => bar.appendChild(x));
 
+    /* inspector pane */
+    const insp = el('div', 'll-inspector');
+    const inspPath = el('div', 'll-insp-path', '—');
+    const pillRow = el('div', 'll-insp-pills');
+    const typePill = el('span', 'll-pill ll-pill-type', '');
+    const sizePill = el('span', 'll-pill', '');
+    pillRow.appendChild(typePill);
+    pillRow.appendChild(sizePill);
+    const valBox = el('pre', 'll-insp-value', '');
+    const bSub = el('button', 'll-insp-primary', 'copy subtree');
+    const rowBtns = el('div', 'll-insp-row');
+    const bIPath = tbtn('copy path', 'Copy the JSON path of the selected node');
+    const bICol = tbtn('collapse', 'Collapse the selected node in the tree');
+    rowBtns.appendChild(bIPath);
+    rowBtns.appendChild(bICol);
+    const findWrap = el('div', 'll-insp-findwrap');
+    const findIn = el('input', 'll-insp-find');
+    findIn.placeholder = 'find';
+    findWrap.appendChild(findIn);
+    findWrap.appendChild(el('span', 'll-kbd', '/'));
+    const keyList = el('div', 'll-insp-keys');
+    [el('div', 'll-insp-label', 'SELECTED'), inspPath, pillRow,
+     el('div', 'll-insp-label', 'VALUE'), valBox, bSub, rowBtns,
+     el('div', 'll-insp-label', 'KEYS'), findWrap, keyList]
+      .forEach((x) => insp.appendChild(x));
+
+    main.appendChild(treePane);
+    main.appendChild(insp);
+    body.appendChild(main);
     rootEl.appendChild(bar);
     rootEl.appendChild(body);
     rootEl.appendChild(rawPre);
     container.appendChild(rootEl);
+
+    /* selection */
+    const sel = { tree: null, node: null };
+
+    function describe(v) {
+      const parsed = tryParseJsonString(v);
+      const eff = parsed || v;
+      const t = typeOf(eff);
+      let size = '';
+      if (t === 'array') size = eff.length + (eff.length === 1 ? ' item' : ' items');
+      else if (t === 'object') {
+        const n = Object.keys(eff).length;
+        size = n + (n === 1 ? ' key' : ' keys');
+      } else if (typeof v === 'string') size = v.length + ' chars';
+      return { eff, label: parsed ? t + ' ⟵ string' : t, size };
+    }
+
+    function selectNode(tree, node) {
+      if (!node || !node.__ll) return;
+      if (sel.node) {
+        const r = sel.node.querySelector(':scope > .ll-row');
+        if (r) r.classList.remove('ll-selected');
+      }
+      sel.tree = tree;
+      sel.node = node;
+      const row = node.querySelector(':scope > .ll-row');
+      if (row) row.classList.add('ll-selected');
+      const { value, path } = node.__ll;
+      inspPath.textContent = pathToString(path);
+      const d = describe(value);
+      typePill.textContent = d.label;
+      sizePill.textContent = d.size;
+      sizePill.hidden = !d.size;
+      let text;
+      if (isObj(d.eff)) text = JSON.stringify(d.eff, null, 2);
+      else if (typeof value === 'string') text = value;
+      else text = String(value);
+      if (text.length > 120000) {
+        text = text.slice(0, 120000) + '\n… (' + text.length + ' chars — "' + (isObj(d.eff) ? 'copy subtree' : 'copy value') + '" copies everything)';
+      }
+      valBox.textContent = text;
+      bSub.textContent = isObj(d.eff) ? 'copy subtree' : 'copy value';
+      bICol.disabled = !isObj(d.eff);
+      renderKeys();
+    }
+
+    function renderKeys() {
+      keyList.textContent = '';
+      if (!sel.node) return;
+      const d = describe(sel.node.__ll.value);
+      if (!isObj(d.eff)) {
+        keyList.appendChild(el('div', 'll-insp-empty', 'scalar — no child keys'));
+        return;
+      }
+      const q = findIn.value.trim().toLowerCase();
+      const keys = Array.isArray(d.eff) ? d.eff.map((x, i) => String(i)) : Object.keys(d.eff);
+      let shown = 0;
+      for (const k of keys) {
+        if (q && !k.toLowerCase().includes(q)) continue;
+        if (shown >= 200) {
+          keyList.appendChild(el('div', 'll-insp-empty', '… and more — narrow with find'));
+          break;
+        }
+        shown++;
+        const kb = el('button', 'll-insp-key', k);
+        kb.addEventListener('click', () => {
+          const childKey = Array.isArray(d.eff) ? parseInt(k, 10) : k;
+          const childNode = sel.tree.ensureRendered(sel.node.__ll.path.concat([childKey]));
+          selectNode(sel.tree, childNode);
+          childNode.scrollIntoView({ block: 'center' });
+        });
+        keyList.appendChild(kb);
+      }
+      if (!shown && q) keyList.appendChild(el('div', 'll-insp-empty', 'no keys match'));
+    }
+
+    findIn.addEventListener('input', renderKeys);
+    rootEl.addEventListener('keydown', (e) => {
+      if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        findIn.focus();
+      }
+    });
+
+    bSub.addEventListener('click', () => {
+      if (!sel.node) return;
+      const v = sel.node.__ll.value;
+      copyText(isObj(v) ? JSON.stringify(v, null, 2) : (typeof v === 'string' ? v : String(v)), bSub);
+    });
+    bIPath.addEventListener('click', () => {
+      if (sel.node) copyText(pathToString(sel.node.__ll.path), bIPath);
+    });
+    bICol.addEventListener('click', () => {
+      if (sel.node && sel.tree) sel.tree.setExpanded(sel.node, false);
+    });
+
+    for (const t of trees) {
+      t.root.addEventListener('click', (e) => {
+        const row = e.target.closest && e.target.closest('.ll-row');
+        if (!row || !t.root.contains(row)) return;
+        selectNode(t, row.parentElement);
+      });
+    }
+    if (trees.length) selectNode(trees[0], trees[0].rootNode);
 
     /* search state */
     const state = { matches: [], idx: -1, capped: false };
@@ -496,6 +645,7 @@
       rootEl.querySelectorAll('.ll-current-hit').forEach((s) => s.classList.remove('ll-current-hit'));
       target.classList.add('ll-hit', 'll-current-hit');
       marked.push(target);
+      selectNode(m.tree, node); // inspector follows search
       target.scrollIntoView({ block: 'center' });
       count.textContent = (state.idx + 1) + ' / ' + state.matches.length + (state.capped ? '+' : '');
     }
