@@ -91,6 +91,28 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   await pill.click();
   t('pill: click after drag re-enables', await page.locator('.ll-root:visible').count() === 2);
 
+  /* ---- tab-scoped OFF: survives reload in the tab, new tabs start ON ---- */
+  await page.locator('.ll-btn2.ll-power').first().click();
+  await page.reload();
+  await inject(page);
+  await page.waitForTimeout(300);
+  t('tabscope: OFF survives reload in same tab', await page.locator('.ll-root:visible').count() === 0);
+  t('tabscope: pill offered after reload', await page.locator('.ll-badge-toggle.ll-off:visible').count() === 1);
+
+  const freshTab = await browser.newPage();
+  await freshTab.goto('file://' + FIX + '/inline.html');
+  await inject(freshTab);
+  await freshTab.waitForTimeout(300);
+  t('tabscope: new tab starts enhanced (ON default)', await freshTab.locator('.ll-root:visible').count() === 1);
+  await freshTab.close();
+
+  await page.locator('.ll-badge-toggle').click();
+  t('tabscope: pill re-enables reloaded tab', await page.locator('.ll-root:visible').count() === 1);
+  await page.reload();
+  await inject(page);
+  await page.waitForTimeout(300);
+  t('tabscope: ON also survives reload', await page.locator('.ll-root:visible').count() === 1);
+
   /* ---- full page raw mode ---- */
   const page2 = await browser.newPage();
   await page2.goto('file://' + FIX + '/raw.txt');

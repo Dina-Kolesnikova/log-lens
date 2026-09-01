@@ -22,7 +22,15 @@ async function syncRegistrations() {
   }]);
 }
 
-chrome.runtime.onInstalled.addListener(syncRegistrations);
+chrome.runtime.onInstalled.addListener(() => {
+  syncRegistrations();
+  // pre-1.3.0 versions stored a sticky per-site off switch; OFF is now
+  // tab-scoped (sessionStorage), so clear the legacy keys
+  chrome.storage.local.get(null).then((all) => {
+    const legacy = Object.keys(all).filter((k) => k.startsWith('ll-off:'));
+    if (legacy.length) chrome.storage.local.remove(legacy);
+  }).catch(() => {});
+});
 chrome.runtime.onStartup.addListener(syncRegistrations);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.sites) syncRegistrations();

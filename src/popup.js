@@ -15,18 +15,17 @@ document.getElementById('options').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
-(async function initSiteToggle() {
+(async function initTabToggle() {
   const row = document.getElementById('siterow');
   const cb = document.getElementById('sitetoggle');
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  let origin = null;
-  try { origin = new URL(tab.url).origin; } catch (e) { /* chrome:// etc. */ }
-  if (!origin || !/^https?:/.test(origin)) { row.style.display = 'none'; return; }
-  const key = 'll-off:' + origin;
-  const st = await chrome.storage.local.get(key);
-  cb.checked = !st[key];
+  let state = null;
+  try {
+    state = await chrome.tabs.sendMessage(tab.id, { type: 'll-get-state' });
+  } catch (e) { /* no content script on this page */ }
+  if (!state || !state.active) { row.style.display = 'none'; return; }
+  cb.checked = state.enabled;
   cb.addEventListener('change', () => {
-    if (cb.checked) chrome.storage.local.remove(key);
-    else chrome.storage.local.set({ [key]: true });
+    chrome.tabs.sendMessage(tab.id, { type: 'll-set-enabled', on: cb.checked }).catch(() => {});
   });
 })();

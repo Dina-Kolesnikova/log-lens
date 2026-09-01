@@ -5,8 +5,9 @@
  *  2. Inline: an HTML log viewer renders JSON blobs inside the page ->
  *     swap each blob for a viewer, keeping a "raw" toggle.
  *     A MutationObserver catches SPA re-renders.
- * A floating ON/OFF pill switches between Log Lens and the original view;
- * the choice is remembered per site (chrome.storage.local).
+ * A toolbar "off" button / floating pill switches between Log Lens and the
+ * original view; OFF is remembered for the current tab only (sessionStorage),
+ * so every new tab or session starts enhanced.
  */
 (function () {
   'use strict';
@@ -22,9 +23,17 @@
   const MIN_INLINE_LEN = 80;      // ignore tiny JSON snippets — a tree adds nothing
   const MIN_JSON_RATIO = 0.4;     // JSON chars must dominate the block
 
-  const store = (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local)
-    ? chrome.storage.local : null;
-  const stateKey = 'll-off:' + location.origin;
+  const OFF_KEY = 'll-off'; // sessionStorage: per-origin AND per-tab, gone in new tabs
+
+  function readOff() {
+    try { return sessionStorage.getItem(OFF_KEY) === '1'; } catch (e) { return false; }
+  }
+  function writeOff(off) {
+    try {
+      if (off) sessionStorage.setItem(OFF_KEY, '1');
+      else sessionStorage.removeItem(OFF_KEY);
+    } catch (e) { /* sandboxed context — state just won't survive reload */ }
+  }
 
   const registry = { inline: [], full: null };
   let enabled = true;
@@ -158,10 +167,7 @@
     enabled = on;
     if (on) activate();
     applyEnabled();
-    if (persist && store) {
-      if (on) store.remove(stateKey);
-      else store.set({ [stateKey]: true });
-    }
+    if (persist) writeOff(!on);
   }
 
   function makeDraggable(el) {
@@ -255,20 +261,21 @@
 
   /* ---------- init ---------- */
 
-  async function init() {
+  function init() {
     if (!document.body) return;
-    if (store) {
+    if (readOff()) enabled = false;
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
       try {
-        const st = await store.get(stateKey);
-        if (st && st[stateKey]) enabled = false;
-      } catch (e) { /* storage unavailable — stay enabled */ }
-      try {
-        chrome.storage.onChanged.addListener((changes, area) => {
-          if (area === 'local' && stateKey in changes) {
-            setEnabled(!changes[stateKey].newValue, false);
+        chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+          if (!msg || typeof msg !== 'object') return;
+          if (msg.type === 'll-get-state') {
+            sendResponse({ active: true, enabled });
+          } else if (msg.type === 'll-set-enabled') {
+            setEnabled(!!msg.on, true);
+            sendResponse({ active: true, enabled });
           }
         });
-      } catch (e) { /* no listener — badge still works */ }
+      } catch (e) { /* messaging unavailable — pill and toolbar still work */ }
     }
     if (enabled) activate();
     else updateBadge(); // page stays original, pill offers turning it on

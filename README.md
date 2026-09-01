@@ -42,10 +42,11 @@ Two detection modes, applied automatically:
 - **raw** button restores the original text at any time; **copy JSON**
   copies the whole pretty-printed document.
 - **On/off switch**: every viewer toolbar has an `off` button that restores
-  the untouched original view for the whole site (works inside modals too).
-  While off, a small draggable "Log Lens OFF" pill floats on the page to
-  turn it back on; the choice is remembered per site. The toolbar popup
-  has the same "Tree view on this site" switch as a fallback.
+  the untouched original view (works inside modals too). While off, a small
+  draggable "Log Lens OFF" pill floats on the page to turn it back on.
+  **ON is always the default** — OFF holds only for the current tab
+  (surviving reloads there); new tabs and sessions open enhanced. The
+  toolbar popup has the same "Tree view in this tab" switch as a fallback.
 
 ## Install
 
