@@ -477,7 +477,7 @@
 
     const bCopy = tbtn('copy JSON', 'Copy the full JSON (pretty-printed)');
     const bRaw = tbtn('raw', 'Toggle original raw text');
-    const bInsp = tbtn('inspector', 'Show or hide the inspector pane');
+    const bInsp = tbtn('inspector', 'Show or hide the inspector pane (or double-click any row to inspect it)');
 
     const items = [brand, searchWrap, filterLbl, group, el('span', 'll-spacer'), bInsp, bCopy, bRaw];
     if (opts.onPowerOff) {
@@ -516,15 +516,15 @@
      el('div', 'll-insp-label', 'KEYS'), findWrap, keyList]
       .forEach((x) => insp.appendChild(x));
 
-    let inspHidden = false;
-    try { inspHidden = localStorage.getItem('ll-insp-hidden') === '1'; } catch (e) { /* no storage */ }
+    let inspHidden = true; // closed by default — open on demand
+    try { inspHidden = localStorage.getItem('ll-insp-open') !== '1'; } catch (e) { /* no storage */ }
     function applyInspVisibility() {
       insp.classList.toggle('ll-insp-hidden', inspHidden);
       bInsp.classList.toggle('ll-active', !inspHidden);
     }
     function setInspHidden(hidden) {
       inspHidden = hidden;
-      try { localStorage.setItem('ll-insp-hidden', hidden ? '1' : '0'); } catch (e) { /* non-persistent */ }
+      try { localStorage.setItem('ll-insp-open', hidden ? '0' : '1'); } catch (e) { /* non-persistent */ }
       applyInspVisibility();
     }
     bInsp.addEventListener('click', () => setInspHidden(!inspHidden));
@@ -662,6 +662,12 @@
         if (!row || !t.root.contains(row)) return;
         if (sel.node === row.parentElement) { deselect(); return; } // click again = unselect
         selectNode(t, row.parentElement);
+      });
+      t.root.addEventListener('dblclick', (e) => {
+        const row = e.target.closest && e.target.closest('.ll-row');
+        if (!row || !t.root.contains(row)) return;
+        selectNode(t, row.parentElement);
+        setInspHidden(false); // double-click = "inspect this"
       });
     }
     rootEl.addEventListener('keydown', (e) => {

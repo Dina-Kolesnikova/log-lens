@@ -115,7 +115,9 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
 
   /* ---- inspector ---- */
   const insp1 = page.locator('.ll-inspector').first();
-  t('inspector: visible by default', await insp1.isVisible());
+  t('inspector: hidden by default', !(await insp1.isVisible()));
+  await page.locator('.ll-btn2', { hasText: /^inspector$/ }).first().click();
+  t('inspector: toolbar button opens it', await insp1.isVisible());
   await page.locator('.ll-string').first().click();
   t('inspector: clicking a row selects it', await page.locator('.ll-row.ll-selected').count() === 1);
   t('inspector: path shown for selection',
@@ -126,8 +128,10 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
     (await page.locator('.ll-insp-value').first().textContent()).includes('Click any row'));
   await page.locator('.ll-insp-close').first().click();
   t('inspector: × closes the pane', !(await insp1.isVisible()));
-  await page.locator('.ll-btn2', { hasText: /^inspector$/ }).first().click();
-  t('inspector: toolbar button reopens it', await insp1.isVisible());
+  await page.locator('.ll-val').first().dblclick();
+  t('inspector: double-click opens pane', await insp1.isVisible());
+  t('inspector: double-click selects the row', await page.locator('.ll-row.ll-selected').count() === 1);
+  await page.locator('.ll-insp-close').first().click(); // leave closed = default for later tests
 
   /* ---- theming ---- */
   await page.evaluate(() => window.LogLens.applyTheme({ key: '#ff0000', fontSize: 15, accent: '#008000' }));
