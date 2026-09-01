@@ -1,0 +1,8 @@
+6a95c28e6efa0fe79807b06d - error - GET https://logs.example.com/api/v2/location-details - 2026-08-31T14:06:06-04:00 (20 hours ago)
+
+composite as string.json [542] Request headers
+{
+    "Host": ["logs.example.com"],
+    "User-Agent": ["ExampleClient/1.0.0"],
+    "tracestate": ["dd=p:6d911624af77df24;s:-1;t.ksr:0.3"]
+}
