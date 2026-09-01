@@ -40,7 +40,9 @@ Two detection modes, applied automatically:
 - **Inspector pane** (wide views): click any row to see the node's full
   value pretty-printed — no truncation — with type/size pills, a
   `copy subtree` button, `copy path`, `collapse`, and a KEYS finder
-  (press `/` to focus it). The pane hides automatically below ~900px.
+  (press `/` to focus it). Click the same row again (or press Esc) to
+  unselect; close the pane with its `×` or the `inspector` toolbar
+  button — the choice is remembered. Hidden automatically below ~900px.
 - **`str→json` badge**: a string value that contains JSON is parsed and
   rendered as a subtree. `copy` still copies the original string.
 - **raw** button restores the original text at any time; **copy JSON**

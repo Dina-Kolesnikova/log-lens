@@ -477,8 +477,9 @@
 
     const bCopy = tbtn('copy JSON', 'Copy the full JSON (pretty-printed)');
     const bRaw = tbtn('raw', 'Toggle original raw text');
+    const bInsp = tbtn('inspector', 'Show or hide the inspector pane');
 
-    const items = [brand, searchWrap, filterLbl, group, el('span', 'll-spacer'), bCopy, bRaw];
+    const items = [brand, searchWrap, filterLbl, group, el('span', 'll-spacer'), bInsp, bCopy, bRaw];
     if (opts.onPowerOff) {
       const bOff = tbtn('off', 'Switch this site back to the original log view (re-enable via the floating pill or the toolbar popup)', 'll-power');
       bOff.addEventListener('click', () => opts.onPowerOff());
@@ -488,6 +489,9 @@
 
     /* inspector pane */
     const insp = el('div', 'll-inspector');
+    const bInspClose = el('button', 'll-insp-close', '×');
+    bInspClose.title = 'Hide the inspector (reopen with the "inspector" toolbar button)';
+    insp.appendChild(bInspClose);
     const inspPath = el('div', 'll-insp-path', '—');
     const pillRow = el('div', 'll-insp-pills');
     const typePill = el('span', 'll-pill ll-pill-type', '');
@@ -511,6 +515,21 @@
      el('div', 'll-insp-label', 'VALUE'), valBox, bSub, rowBtns,
      el('div', 'll-insp-label', 'KEYS'), findWrap, keyList]
       .forEach((x) => insp.appendChild(x));
+
+    let inspHidden = false;
+    try { inspHidden = localStorage.getItem('ll-insp-hidden') === '1'; } catch (e) { /* no storage */ }
+    function applyInspVisibility() {
+      insp.classList.toggle('ll-insp-hidden', inspHidden);
+      bInsp.classList.toggle('ll-active', !inspHidden);
+    }
+    function setInspHidden(hidden) {
+      inspHidden = hidden;
+      try { localStorage.setItem('ll-insp-hidden', hidden ? '1' : '0'); } catch (e) { /* non-persistent */ }
+      applyInspVisibility();
+    }
+    bInsp.addEventListener('click', () => setInspHidden(!inspHidden));
+    bInspClose.addEventListener('click', () => setInspHidden(true));
+    applyInspVisibility();
 
     main.appendChild(treePane);
     main.appendChild(insp);
@@ -536,6 +555,25 @@
       return { eff, label: parsed ? t + ' ⟵ string' : t, size };
     }
 
+    function deselect() {
+      if (sel.node) {
+        const r = sel.node.querySelector(':scope > .ll-row');
+        if (r) r.classList.remove('ll-selected');
+      }
+      sel.tree = null;
+      sel.node = null;
+      inspPath.textContent = '—';
+      typePill.hidden = true;
+      sizePill.hidden = true;
+      valBox.textContent = 'Click any row in the tree to inspect it here: full value with no truncation, copy actions, and its keys.';
+      bSub.textContent = 'copy value';
+      bSub.disabled = true;
+      bIPath.disabled = true;
+      bICol.disabled = true;
+      keyList.textContent = '';
+      keyList.appendChild(el('div', 'll-insp-empty', 'nothing selected'));
+    }
+
     function selectNode(tree, node) {
       if (!node || !node.__ll) return;
       if (sel.node) {
@@ -544,6 +582,9 @@
       }
       sel.tree = tree;
       sel.node = node;
+      typePill.hidden = false;
+      bSub.disabled = false;
+      bIPath.disabled = false;
       const row = node.querySelector(':scope > .ll-row');
       if (row) row.classList.add('ll-selected');
       const { value, path } = node.__ll;
@@ -619,9 +660,13 @@
       t.root.addEventListener('click', (e) => {
         const row = e.target.closest && e.target.closest('.ll-row');
         if (!row || !t.root.contains(row)) return;
+        if (sel.node === row.parentElement) { deselect(); return; } // click again = unselect
         selectNode(t, row.parentElement);
       });
     }
+    rootEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') deselect();
+    });
     if (trees.length) selectNode(trees[0], trees[0].rootNode);
 
     /* search state */

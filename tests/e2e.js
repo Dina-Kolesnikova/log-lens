@@ -113,6 +113,22 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   await page.waitForTimeout(300);
   t('tabscope: ON also survives reload', await page.locator('.ll-root:visible').count() === 1);
 
+  /* ---- inspector ---- */
+  const insp1 = page.locator('.ll-inspector').first();
+  t('inspector: visible by default', await insp1.isVisible());
+  await page.locator('.ll-string').first().click();
+  t('inspector: clicking a row selects it', await page.locator('.ll-row.ll-selected').count() === 1);
+  t('inspector: path shown for selection',
+    (await page.locator('.ll-insp-path').first().textContent()).startsWith('$.'));
+  await page.locator('.ll-row.ll-selected').first().click();
+  t('inspector: clicking the row again unselects', await page.locator('.ll-row.ll-selected').count() === 0);
+  t('inspector: empty state after unselect',
+    (await page.locator('.ll-insp-value').first().textContent()).includes('Click any row'));
+  await page.locator('.ll-insp-close').first().click();
+  t('inspector: × closes the pane', !(await insp1.isVisible()));
+  await page.locator('.ll-btn2', { hasText: /^inspector$/ }).first().click();
+  t('inspector: toolbar button reopens it', await insp1.isVisible());
+
   /* ---- theming ---- */
   await page.evaluate(() => window.LogLens.applyTheme({ key: '#ff0000', fontSize: 15, accent: '#008000' }));
   const keyColor = await page.locator('.ll-key').first().evaluate((el) => getComputedStyle(el).color);

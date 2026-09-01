@@ -377,3 +377,21 @@ body.ll-page { margin: 0; background: var(--ll-bg, #f1e8d5); }
   color: var(--ll-accent, #c96f2e);
   border-color: var(--ll-accent, #c96f2e);
 }
+
+/* inspector show/hide + close */
+.ll-inspector.ll-insp-hidden { display: none; }
+.ll-insp-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--_muted);
+  font: 15px/1 ui-monospace, Menlo, monospace;
+  cursor: pointer;
+}
+.ll-insp-close:hover { background: var(--_hover); color: var(--_fg); }
+.ll-insp-primary:disabled { opacity: 0.45; cursor: default; }
