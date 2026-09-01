@@ -10,6 +10,6 @@ It runs entirely locally in your browser.
   list and appearance preferences), saved locally via Chrome's
   storage API and never transmitted anywhere
 
-Contact: [your email]
+Contact: dina1kolesn@gmail.com
 
 Last updated: September 2026
