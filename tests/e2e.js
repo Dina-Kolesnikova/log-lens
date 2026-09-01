@@ -113,6 +113,20 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   await page.waitForTimeout(300);
   t('tabscope: ON also survives reload', await page.locator('.ll-root:visible').count() === 1);
 
+  /* ---- theming ---- */
+  await page.evaluate(() => window.LogLens.applyTheme({ key: '#ff0000', fontSize: 15, accent: '#008000' }));
+  const keyColor = await page.locator('.ll-key').first().evaluate((el) => getComputedStyle(el).color);
+  t('theme: key color applied', keyColor === 'rgb(255, 0, 0)');
+  const fs = await page.locator('.ll-root').first().evaluate((el) => getComputedStyle(el).fontSize);
+  t('theme: font size applied', fs === '15px');
+  const brandColor = await page.locator('.ll-brand').first().evaluate((el) => getComputedStyle(el).color);
+  t('theme: accent applied to brand', brandColor === 'rgb(0, 128, 0)');
+  // invalid values are ignored (no CSS injection, no crash)
+  await page.evaluate(() => window.LogLens.applyTheme({ key: 'red;} body{display:none', fontSize: 99 }));
+  t('theme: invalid values ignored', await page.locator('body:visible').count() === 1 &&
+    (await page.locator('.ll-root').first().evaluate((el) => getComputedStyle(el).fontSize)) === '12px');
+  await page.evaluate(() => window.LogLens.applyTheme({}));
+
   /* ---- full page raw mode ---- */
   const page2 = await browser.newPage();
   await page2.goto('file://' + FIX + '/raw.txt');

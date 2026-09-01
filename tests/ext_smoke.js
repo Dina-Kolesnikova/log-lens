@@ -21,6 +21,8 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
     const opt = await ctx.newPage();
     await opt.goto('chrome-extension://' + extId + '/src/options.html');
     t('options page renders', await opt.locator('#add').count() === 1);
+    t('options: theme pickers present', await opt.locator('.swatches [data-k]').count() === 9);
+    t('options: live preview styled', await opt.locator('#preview .ll-key').first().evaluate((el) => getComputedStyle(el).color) === 'rgb(124, 58, 237)');
 
     // popup page renders (as a tab)
     const pop = await ctx.newPage();

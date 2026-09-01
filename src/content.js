@@ -277,6 +277,16 @@
         });
       } catch (e) { /* messaging unavailable — pill and toolbar still work */ }
     }
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+      try {
+        chrome.storage.sync.get('theme').then((r) => {
+          if (r && r.theme) LL.applyTheme(r.theme);
+        }).catch(() => {});
+        chrome.storage.onChanged.addListener((changes, area) => {
+          if (area === 'sync' && changes.theme) LL.applyTheme(changes.theme.newValue || {});
+        });
+      } catch (e) { /* theme stays default */ }
+    }
     if (enabled) activate();
     else updateBadge(); // page stays original, pill offers turning it on
   }

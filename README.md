@@ -48,6 +48,13 @@ Two detection modes, applied automatically:
   (surviving reloads there); new tabs and sessions open enhanced. The
   toolbar popup has the same "Tree view in this tab" switch as a fallback.
 
+### Appearance
+
+Extension options → **Appearance**: color pickers for buttons/accent, font
+color, keys, strings, numbers, booleans, backgrounds, plus font size — with
+a live preview. Changes apply instantly to every open Log Lens view and
+sync with your Chrome profile. "Reset to defaults" restores the stock look.
+
 ## Install
 
 From the Chrome Web Store (when published), or unpacked:

@@ -24,3 +24,9 @@ ta.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') render();
 });
 again.addEventListener('click', () => location.reload());
+
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+  chrome.storage.sync.get('theme').then((r) => {
+    if (r && r.theme) window.LogLens.applyTheme(r.theme);
+  }).catch(() => {});
+}

@@ -62,3 +62,55 @@ input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('add').click();
 });
 load();
+
+
+/* ---------------- appearance ---------------- */
+
+const THEME_DEFAULTS = {
+  accent: '#4653c6',
+  text: '#1f2430',
+  key: '#7c3aed',
+  string: '#0a7d33',
+  number: '#1259c9',
+  boolean: '#c25607',
+  bg: '#ffffff',
+  barBg: '#f0f3f7',
+  fontSize: 12,
+};
+
+const themeInputs = Array.from(document.querySelectorAll('.swatches [data-k]'));
+
+function currentTheme() {
+  const t = {};
+  for (const inp of themeInputs) {
+    const k = inp.dataset.k;
+    t[k] = k === 'fontSize' ? parseInt(inp.value, 10) || THEME_DEFAULTS.fontSize : inp.value;
+  }
+  return t;
+}
+
+function fillInputs(theme) {
+  for (const inp of themeInputs) {
+    const k = inp.dataset.k;
+    inp.value = (theme && theme[k] !== undefined) ? theme[k] : THEME_DEFAULTS[k];
+  }
+}
+
+async function initTheme() {
+  const { theme } = await chrome.storage.sync.get('theme');
+  fillInputs(theme);
+  window.LogLens.applyTheme(theme || {});
+  for (const inp of themeInputs) {
+    inp.addEventListener('input', () => {
+      const t = currentTheme();
+      window.LogLens.applyTheme(t); // live preview
+      chrome.storage.sync.set({ theme: t }); // content scripts update live via storage.onChanged
+    });
+  }
+  document.getElementById('theme-reset').addEventListener('click', () => {
+    fillInputs(null);
+    window.LogLens.applyTheme({});
+    chrome.storage.sync.remove('theme');
+  });
+}
+initTheme();

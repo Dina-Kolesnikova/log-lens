@@ -569,5 +569,41 @@
     return { root: rootEl, trees };
   }
 
-  window.LogLens = { mount, extractSegments, Tree };
+  /* ---------------- theme ---------------- */
+  // Applies user colors from the options page. Values are validated
+  // (#hex colors, bounded px size) so stored data can't inject CSS.
+  const THEME_VARS = {
+    accent: '--ll-accent',
+    text: '--ll-fg',
+    bg: '--ll-bg',
+    barBg: '--ll-bar-bg',
+    key: '--ll-key',
+    string: '--ll-string',
+    number: '--ll-number',
+    boolean: '--ll-boolean',
+  };
+
+  function applyTheme(theme) {
+    let css = ':root {';
+    if (theme && typeof theme === 'object') {
+      for (const [k, v] of Object.entries(theme)) {
+        if (k === 'fontSize') {
+          const n = parseInt(v, 10);
+          if (n >= 9 && n <= 20) css += '--ll-font-size:' + n + 'px;';
+        } else if (THEME_VARS[k] && typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) {
+          css += THEME_VARS[k] + ':' + v + ';';
+        }
+      }
+    }
+    css += '}';
+    let st = document.getElementById('ll-theme');
+    if (!st) {
+      st = document.createElement('style');
+      st.id = 'll-theme';
+      (document.head || document.documentElement).appendChild(st);
+    }
+    st.textContent = css;
+  }
+
+  window.LogLens = { mount, extractSegments, Tree, applyTheme };
 })();

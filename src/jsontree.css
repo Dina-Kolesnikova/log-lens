@@ -1,15 +1,32 @@
-/* Log Lens styles */
+/* Log Lens styles.
+ * All colors flow through CSS variables so the options-page theme editor
+ * can override them (see LogLens.applyTheme). Defaults are the fallbacks. */
 .ll-root {
-  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  color: #1f2430;
-  background: #fff;
-  border: 1px solid #d7dce3;
+  --_accent: var(--ll-accent, #4653c6);
+  --_fg: var(--ll-fg, #1f2430);
+  --_bg: var(--ll-bg, #ffffff);
+  --_bar-bg: var(--ll-bar-bg, #f0f3f7);
+  --_key: var(--ll-key, #7c3aed);
+  --_string: var(--ll-string, #0a7d33);
+  --_number: var(--ll-number, #1259c9);
+  --_boolean: var(--ll-boolean, #c25607);
+  --_fs: var(--ll-font-size, 12px);
+  --_border: #c3cad4;
+  --_border-soft: #d7dce3;
+  --_muted: #5a6472;
+  --_faint: #8892a0;
+  --_hover: #e8ecf2;
+
+  font: var(--_fs)/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--_fg);
+  background: var(--_bg);
+  border: 1px solid var(--_border-soft);
   border-radius: 8px;
   margin: 8px 0;
   text-align: left;
 }
 .ll-root.ll-full { border: none; border-radius: 0; margin: 0; min-height: 100vh; }
-body.ll-page { margin: 0; background: #fff; }
+body.ll-page { margin: 0; background: var(--ll-bg, #ffffff); }
 
 /* toolbar */
 .ll-bar {
@@ -21,42 +38,44 @@ body.ll-page { margin: 0; background: #fff; }
   gap: 6px;
   flex-wrap: wrap;
   padding: 8px 10px;
-  background: #f0f3f7;
-  border-bottom: 1px solid #d7dce3;
+  background: var(--_bar-bg);
+  border-bottom: 1px solid var(--_border-soft);
   border-radius: 8px 8px 0 0;
 }
 .ll-root.ll-full > .ll-bar { border-radius: 0; }
-.ll-brand { font-weight: 700; color: #4653c6; white-space: nowrap; }
+.ll-brand { font-weight: 700; color: var(--_accent); white-space: nowrap; }
 .ll-search {
   flex: 1 1 240px;
   min-width: 160px;
   padding: 4px 8px;
-  border: 1px solid #c3cad4;
+  border: 1px solid var(--_border);
   border-radius: 6px;
   font: inherit;
   color: inherit;
-  background: #fff;
+  background: var(--_bg);
 }
-.ll-count { color: #5a6472; min-width: 56px; text-align: center; white-space: nowrap; }
+.ll-count { color: var(--_muted); min-width: 56px; text-align: center; white-space: nowrap; }
 .ll-btn2 {
   padding: 3px 9px;
-  border: 1px solid #c3cad4;
+  border: 1px solid var(--_border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--_bg);
   cursor: pointer;
   font: inherit;
-  color: #333c48;
+  color: var(--_fg);
 }
-.ll-btn2:hover { background: #e8ecf2; }
-.ll-btn2.ll-active { background: #4653c6; color: #fff; border-color: #4653c6; }
-.ll-filterlbl { color: #5a6472; white-space: nowrap; cursor: pointer; user-select: none; }
-.ll-sep { width: 1px; height: 18px; background: #d7dce3; margin: 0 2px; }
+.ll-btn2:hover { background: var(--_hover); }
+.ll-btn2.ll-active { background: var(--_accent); color: #fff; border-color: var(--_accent); }
+.ll-btn2.ll-power { color: #b3261e; border-color: #d7bcbc; }
+.ll-btn2.ll-power:hover { background: #fdecec; }
+.ll-filterlbl { color: var(--_muted); white-space: nowrap; cursor: pointer; user-select: none; }
+.ll-sep { width: 1px; height: 18px; background: var(--_border-soft); margin: 0 2px; }
 
 /* body */
 .ll-body { padding: 8px 12px 12px; overflow: auto; }
 .ll-root:not(.ll-full) > .ll-body { max-height: 75vh; }
 .ll-seg { margin: 4px 0; }
-.ll-textseg { white-space: pre-wrap; word-break: break-word; color: #5a6472; margin: 6px 0; font: inherit; }
+.ll-textseg { white-space: pre-wrap; word-break: break-word; color: var(--_muted); margin: 6px 0; font: inherit; }
 .ll-raw { padding: 10px 14px; margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; }
 
 /* tree */
@@ -67,13 +86,13 @@ body.ll-page { margin: 0; background: #fff; }
   display: inline-block;
   width: 14px;
   cursor: pointer;
-  color: #8892a0;
+  color: var(--_faint);
   user-select: none;
 }
-.ll-key { color: #7c3aed; cursor: pointer; }
-.ll-idx { color: #9aa3b0; }
-.ll-colon { color: #8892a0; }
-.ll-preview { color: #8892a0; cursor: pointer; }
+.ll-key { color: var(--_key); cursor: pointer; }
+.ll-idx { color: var(--_faint); }
+.ll-colon { color: var(--_faint); }
+.ll-preview { color: var(--_faint); cursor: pointer; }
 .ll-badge {
   display: inline-block;
   background: #fff3d6;
@@ -86,11 +105,11 @@ body.ll-page { margin: 0; background: #fff; }
   vertical-align: 1px;
 }
 .ll-val { white-space: pre-wrap; }
-.ll-string { color: #0a7d33; }
-.ll-number { color: #1259c9; }
-.ll-boolean { color: #c25607; }
-.ll-undefined, .ll-null { color: #8892a0; font-style: italic; }
-.ll-trunc { cursor: pointer; border-bottom: 1px dashed #0a7d33; }
+.ll-string { color: var(--_string); }
+.ll-number { color: var(--_number); }
+.ll-boolean { color: var(--_boolean); }
+.ll-undefined, .ll-null { color: var(--_faint); font-style: italic; }
+.ll-trunc { cursor: pointer; border-bottom: 1px dashed var(--_string); }
 
 /* per-node hover tools */
 .ll-tools { visibility: hidden; margin-left: 8px; white-space: nowrap; }
@@ -100,27 +119,27 @@ body.ll-page { margin: 0; background: #fff; }
   font-family: inherit;
   padding: 0 5px;
   margin-left: 3px;
-  border: 1px solid #c3cad4;
+  border: 1px solid var(--_border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--_bg);
   cursor: pointer;
-  color: #5a6472;
+  color: var(--_muted);
   line-height: 1.5;
 }
-.ll-btn:hover { background: #e8ecf2; }
+.ll-btn:hover { background: var(--_hover); }
 .ll-more {
   display: block;
   margin: 2px 0 2px 18px;
   font-size: 11px;
   font-family: inherit;
   padding: 1px 8px;
-  border: 1px dashed #c3cad4;
+  border: 1px dashed var(--_border);
   border-radius: 4px;
-  background: #f7f9fb;
+  background: var(--_bar-bg);
   cursor: pointer;
-  color: #5a6472;
+  color: var(--_muted);
 }
-.ll-more:hover { background: #e8ecf2; }
+.ll-more:hover { background: var(--_hover); }
 
 /* search highlight */
 .ll-hit { background: #ffe58a; border-radius: 2px; }
@@ -153,6 +172,8 @@ body.ll-page { margin: 0; background: #fff; }
   border: 1px solid transparent;
 }
 .ll-badge-toggle.ll-off { background: #fff; color: #5a6472; border-color: #c3cad4; }
-.ll-badge-toggle.ll-off:hover { background: #e8ecf2; color: #4653c6; border-color: #4653c6; }
-.ll-btn2.ll-power { color: #b3261e; border-color: #d7bcbc; }
-.ll-btn2.ll-power:hover { background: #fdecec; }
+.ll-badge-toggle.ll-off:hover {
+  background: #e8ecf2;
+  color: var(--ll-accent, #4653c6);
+  border-color: var(--ll-accent, #4653c6);
+}
