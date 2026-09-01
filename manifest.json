@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Log Lens — JSON Log Viewer",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Turn raw JSON in any log viewer into an interactive tree: collapse/expand, search keys & values, copy value/path/subtree, auto-parse JSON-in-strings.",
   "permissions": ["activeTab", "scripting", "clipboardWrite", "storage"],
   "optional_host_permissions": ["*://*/*"],

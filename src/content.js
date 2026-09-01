@@ -53,10 +53,9 @@
     const originalNodes = Array.from(document.body.childNodes);
     document.body.textContent = '';
     document.body.classList.add('ll-page');
-    const mounted = LL.mount(document.body, { segments: segs, rawText: text }, { full: true });
+    const mounted = LL.mount(document.body, { segments: segs, rawText: text }, { full: true, onPowerOff: () => setEnabled(false, true) });
     registry.full = { originalNodes, viewer: mounted.root };
     document.title = '⌕ ' + document.title;
-    ensureBadge();
     return true;
   }
 
@@ -84,9 +83,8 @@
     holder.className = 'll-inline-holder';
     elm.parentNode.insertBefore(holder, elm.nextSibling);
     elm.classList.add('ll-hidden-original');
-    LL.mount(holder, { segments: segs, rawText: text });
+    LL.mount(holder, { segments: segs, rawText: text }, { onPowerOff: () => setEnabled(false, true) });
     registry.inline.push({ original: elm, holder });
-    ensureBadge();
   }
 
   function scan(root) {
@@ -166,24 +164,59 @@
     }
   }
 
+  function makeDraggable(el) {
+    let sx, sy, ox, oy, dragging = false, moved = false;
+    el.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      moved = false;
+      sx = e.clientX; sy = e.clientY;
+      const r = el.getBoundingClientRect();
+      ox = r.left; oy = r.top;
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
+      if (moved) {
+        el.style.left = Math.max(4, Math.min(window.innerWidth - el.offsetWidth - 4, ox + dx)) + 'px';
+        el.style.top = Math.max(4, Math.min(window.innerHeight - el.offsetHeight - 4, oy + dy)) + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+      }
+    });
+    el.addEventListener('pointerup', () => { dragging = false; });
+    // a drag must not count as a click
+    el.addEventListener('click', (e) => {
+      if (moved) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        moved = false;
+      }
+    }, true);
+  }
+
   function ensureBadge() {
     if (badgeEl) return;
     badgeEl = document.createElement('button');
-    badgeEl.className = 'll-badge-toggle';
-    badgeEl.addEventListener('click', () => setEnabled(!enabled, true));
+    badgeEl.className = 'll-badge-toggle ll-off';
+    badgeEl.textContent = '⌕ Log Lens OFF';
+    badgeEl.title = 'Click to re-enable the JSON tree view · drag to move';
+    badgeEl.addEventListener('click', () => setEnabled(true, true));
+    makeDraggable(badgeEl);
     // attached to <html>, not <body>: survives full-page body swaps
     document.documentElement.appendChild(badgeEl);
-    updateBadge();
   }
 
   function updateBadge() {
-    if (!badgeEl) return;
-    badgeEl.textContent = enabled ? '⌕ Log Lens ON' : '⌕ Log Lens OFF';
-    badgeEl.classList.toggle('ll-on', enabled);
-    badgeEl.classList.toggle('ll-off', !enabled);
-    badgeEl.title = enabled
-      ? 'Switch back to the original log view (remembered for this site)'
-      : 'Re-enable the JSON tree view';
+    // pill exists only while Log Lens is OFF; while ON the switch lives
+    // in each viewer's toolbar ("off" button), which is never covered
+    if (enabled) {
+      if (badgeEl) badgeEl.style.display = 'none';
+      return;
+    }
+    ensureBadge();
+    badgeEl.style.display = '';
   }
 
   /* ---------- SPA re-render handling ---------- */
@@ -238,7 +271,7 @@
       } catch (e) { /* no listener — badge still works */ }
     }
     if (enabled) activate();
-    else ensureBadge(); // page stays original, pill offers turning it on
+    else updateBadge(); // page stays original, pill offers turning it on
   }
 
   window.__logLensRescan = () => {

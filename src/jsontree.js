@@ -461,8 +461,14 @@
     const bCopy = tbtn('copy JSON', 'Copy the full JSON (pretty-printed)');
     const bRaw = tbtn('raw', 'Toggle original raw text');
 
-    [brand, searchIn, count, bPrev, bNext, filterLbl, sep(), b1, b2, b3, bAll, bCol, sep(), bCopy, bRaw]
-      .forEach((x) => bar.appendChild(x));
+    const items = [brand, searchIn, count, bPrev, bNext, filterLbl, sep(), b1, b2, b3, bAll, bCol, sep(), bCopy, bRaw];
+    if (opts.onPowerOff) {
+      const bOff = tbtn('off', 'Switch this site back to the original log view (re-enable via the floating pill or the toolbar popup)');
+      bOff.classList.add('ll-power');
+      bOff.addEventListener('click', () => opts.onPowerOff());
+      items.push(sep(), bOff);
+    }
+    items.forEach((x) => bar.appendChild(x));
 
     rootEl.appendChild(bar);
     rootEl.appendChild(body);

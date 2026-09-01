@@ -65,15 +65,31 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   await page.waitForTimeout(800);
   t('inline: SPA-added block enhanced', await page.locator('.ll-root').count() === 2);
 
-  /* ---- on/off pill: inline mode ---- */
-  t('toggle: pill shown and ON', await page.locator('.ll-badge-toggle.ll-on').count() === 1);
-  await page.locator('.ll-badge-toggle').click();
+  /* ---- on/off switch: inline mode ---- */
+  t('toggle: no pill while ON', await page.locator('.ll-badge-toggle:visible').count() === 0);
+  t('toggle: toolbar has off button', await page.locator('.ll-btn2.ll-power').count() === 2);
+  await page.locator('.ll-btn2.ll-power').first().click();
   t('toggle off: viewers hidden', await page.locator('.ll-root:visible').count() === 0);
   t('toggle off: original block restored', await page.locator('#context-block:visible').count() === 1);
-  t('toggle off: pill shows OFF', await page.locator('.ll-badge-toggle.ll-off').count() === 1);
+  t('toggle off: pill appears', await page.locator('.ll-badge-toggle.ll-off:visible').count() === 1);
   await page.locator('.ll-badge-toggle').click();
   t('toggle on: viewers back', await page.locator('.ll-root:visible').count() === 2);
   t('toggle on: original hidden again', await page.locator('#context-block:visible').count() === 0);
+  t('toggle on: pill gone', await page.locator('.ll-badge-toggle:visible').count() === 0);
+
+  // drag the pill: turn off again, drag, verify it did NOT toggle back on
+  await page.locator('.ll-btn2.ll-power').first().click();
+  const pill = page.locator('.ll-badge-toggle');
+  const box = await pill.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 300, box.y - 200, { steps: 5 });
+  await page.mouse.up();
+  t('pill: drag does not toggle', await page.locator('.ll-root:visible').count() === 0);
+  const box2 = await pill.boundingBox();
+  t('pill: actually moved', Math.abs(box2.x - box.x) > 100);
+  await pill.click();
+  t('pill: click after drag re-enables', await page.locator('.ll-root:visible').count() === 2);
 
   /* ---- full page raw mode ---- */
   const page2 = await browser.newPage();
@@ -88,8 +104,8 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   t('raw: toggle shows original', await page2.locator('.ll-raw:visible').count() === 1);
   await page2.locator('.ll-btn2', { hasText: /^raw$/ }).click();
 
-  // on/off pill in full-page mode restores the original document
-  await page2.locator('.ll-badge-toggle').click();
+  // on/off in full-page mode restores the original document
+  await page2.locator('.ll-btn2.ll-power').click();
   t('raw toggle off: original body restored',
     await page2.locator('body:not(.ll-page)').count() === 1 &&
     await page2.locator('.ll-root').count() === 0 &&
