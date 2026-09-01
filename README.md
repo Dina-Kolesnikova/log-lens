@@ -41,6 +41,9 @@ Two detection modes, applied automatically:
   rendered as a subtree. `copy` still copies the original string.
 - **raw** button restores the original text at any time; **copy JSON**
   copies the whole pretty-printed document.
+- **ON/OFF pill** (bottom-right of every enhanced page) switches between
+  Log Lens and the untouched original view; the choice is remembered per
+  site. The toolbar popup has the same "Tree view on this site" switch.
 
 ## Install
 

@@ -5,6 +5,8 @@
  *  2. Inline: an HTML log viewer renders JSON blobs inside the page ->
  *     swap each blob for a viewer, keeping a "raw" toggle.
  *     A MutationObserver catches SPA re-renders.
+ * A floating ON/OFF pill switches between Log Lens and the original view;
+ * the choice is remembered per site (chrome.storage.local).
  */
 (function () {
   'use strict';
@@ -20,17 +22,41 @@
   const MIN_INLINE_LEN = 80;      // ignore tiny JSON snippets — a tree adds nothing
   const MIN_JSON_RATIO = 0.4;     // JSON chars must dominate the block
 
+  const store = (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local)
+    ? chrome.storage.local : null;
+  const stateKey = 'll-off:' + location.origin;
+
+  const registry = { inline: [], full: null };
+  let enabled = true;
+  let badgeEl = null;
+  let moStarted = false;
+
   /* ---------- full page mode ---------- */
+
+  function detectFullPageText() {
+    const body = document.body;
+    if (!body) return null;
+    const ct = document.contentType || '';
+    const singlePre = body.children.length === 1 && body.children[0].tagName === 'PRE';
+    if (ct.includes('json') || ct === 'text/plain' || singlePre) {
+      const text = singlePre ? body.children[0].textContent : body.innerText;
+      if (text && text.trim()) return text;
+    }
+    return null;
+  }
 
   function enhanceFullPage(text) {
     let segs;
     try { segs = LL.extractSegments(text); } catch (e) { return false; }
     const jsonChars = segs.filter((s) => s.type === 'json').reduce((a, s) => a + s.raw.length, 0);
     if (!jsonChars || jsonChars < text.length * MIN_JSON_RATIO) return false;
+    const originalNodes = Array.from(document.body.childNodes);
     document.body.textContent = '';
     document.body.classList.add('ll-page');
-    LL.mount(document.body, { segments: segs, rawText: text }, { full: true });
+    const mounted = LL.mount(document.body, { segments: segs, rawText: text }, { full: true });
+    registry.full = { originalNodes, viewer: mounted.root };
     document.title = '⌕ ' + document.title;
+    ensureBadge();
     return true;
   }
 
@@ -59,10 +85,12 @@
     elm.parentNode.insertBefore(holder, elm.nextSibling);
     elm.classList.add('ll-hidden-original');
     LL.mount(holder, { segments: segs, rawText: text });
+    registry.inline.push({ original: elm, holder });
+    ensureBadge();
   }
 
   function scan(root) {
-    if (!root) return;
+    if (!enabled || !root) return;
     const candidates = [];
     const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'IFRAME', 'CANVAS', 'SVG']);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
@@ -73,7 +101,7 @@
         }
         if (elm.dataset.llDone) return NodeFilter.FILTER_REJECT;
         // leaf elements whose text is a JSON blob, or <pre>/<code> blocks
-        // that may mix a preamble with JSON (log-raw style)
+        // that may mix a preamble with JSON (raw-dump style)
         if (elm.childElementCount === 0) {
           const t = (elm.textContent || '').trim();
           return looksLikeJsonBlock(t) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
@@ -94,6 +122,70 @@
     top.forEach(enhanceInline);
   }
 
+  /* ---------- on/off switch ---------- */
+
+  function applyEnabled() {
+    if (registry.full) {
+      const body = document.body;
+      if (enabled && !registry.full.viewer.isConnected) {
+        body.textContent = '';
+        body.classList.add('ll-page');
+        body.appendChild(registry.full.viewer);
+      } else if (!enabled && registry.full.viewer.isConnected) {
+        registry.full.viewer.remove();
+        body.classList.remove('ll-page');
+        for (const nd of registry.full.originalNodes) body.appendChild(nd);
+      }
+    }
+    for (const it of registry.inline) {
+      it.holder.style.display = enabled ? '' : 'none';
+      it.original.classList.toggle('ll-hidden-original', enabled);
+    }
+    updateBadge();
+  }
+
+  function activate() {
+    if (registry.full) { applyEnabled(); return; }
+    const text = detectFullPageText();
+    if (text && enhanceFullPage(text)) return; // static page, no observer needed
+    scan(document.body);
+    if (!moStarted && document.body) {
+      mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+      moStarted = true;
+    }
+  }
+
+  function setEnabled(on, persist) {
+    if (on === enabled) { updateBadge(); return; }
+    enabled = on;
+    if (on) activate();
+    applyEnabled();
+    if (persist && store) {
+      if (on) store.remove(stateKey);
+      else store.set({ [stateKey]: true });
+    }
+  }
+
+  function ensureBadge() {
+    if (badgeEl) return;
+    badgeEl = document.createElement('button');
+    badgeEl.className = 'll-badge-toggle';
+    badgeEl.addEventListener('click', () => setEnabled(!enabled, true));
+    // attached to <html>, not <body>: survives full-page body swaps
+    document.documentElement.appendChild(badgeEl);
+    updateBadge();
+  }
+
+  function updateBadge() {
+    if (!badgeEl) return;
+    badgeEl.textContent = enabled ? '⌕ Log Lens ON' : '⌕ Log Lens OFF';
+    badgeEl.classList.toggle('ll-on', enabled);
+    badgeEl.classList.toggle('ll-off', !enabled);
+    badgeEl.title = enabled
+      ? 'Switch back to the original log view (remembered for this site)'
+      : 'Re-enable the JSON tree view';
+  }
+
   /* ---------- SPA re-render handling ---------- */
 
   let pending = null;
@@ -106,6 +198,7 @@
   }
 
   const mo = new MutationObserver((muts) => {
+    if (!enabled) return;
     for (const m of muts) {
       const target = m.target;
       if (target && target.nodeType === 1 &&
@@ -119,7 +212,8 @@
       for (const nd of m.addedNodes) {
         if (nd.nodeType !== 1 && nd.nodeType !== 3) continue;
         const e = nd.nodeType === 1 ? nd : nd.parentElement;
-        if (e && (e.closest('.ll-root') || e.closest('.ll-inline-holder'))) continue;
+        if (e && (e.closest('.ll-root') || e.closest('.ll-inline-holder') ||
+                  e.classList && e.classList.contains('ll-badge-toggle'))) continue;
         schedule();
         return;
       }
@@ -128,20 +222,29 @@
 
   /* ---------- init ---------- */
 
-  function init() {
-    const body = document.body;
-    if (!body) return;
-    const ct = document.contentType || '';
-    const singlePre = body.children.length === 1 && body.children[0].tagName === 'PRE';
-    if (ct.includes('json') || ct === 'text/plain' || singlePre) {
-      const text = singlePre ? body.children[0].textContent : body.innerText;
-      if (text && text.trim() && enhanceFullPage(text)) return; // static page, no observer needed
+  async function init() {
+    if (!document.body) return;
+    if (store) {
+      try {
+        const st = await store.get(stateKey);
+        if (st && st[stateKey]) enabled = false;
+      } catch (e) { /* storage unavailable — stay enabled */ }
+      try {
+        chrome.storage.onChanged.addListener((changes, area) => {
+          if (area === 'local' && stateKey in changes) {
+            setEnabled(!changes[stateKey].newValue, false);
+          }
+        });
+      } catch (e) { /* no listener — badge still works */ }
     }
-    scan(body);
-    mo.observe(body, { childList: true, subtree: true, characterData: true });
+    if (enabled) activate();
+    else ensureBadge(); // page stays original, pill offers turning it on
   }
 
-  window.__logLensRescan = () => scan(document.body);
+  window.__logLensRescan = () => {
+    if (!enabled) setEnabled(true, true); // manual toolbar click means "turn it on"
+    else { activate(); }
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

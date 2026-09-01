@@ -65,6 +65,16 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   await page.waitForTimeout(800);
   t('inline: SPA-added block enhanced', await page.locator('.ll-root').count() === 2);
 
+  /* ---- on/off pill: inline mode ---- */
+  t('toggle: pill shown and ON', await page.locator('.ll-badge-toggle.ll-on').count() === 1);
+  await page.locator('.ll-badge-toggle').click();
+  t('toggle off: viewers hidden', await page.locator('.ll-root:visible').count() === 0);
+  t('toggle off: original block restored', await page.locator('#context-block:visible').count() === 1);
+  t('toggle off: pill shows OFF', await page.locator('.ll-badge-toggle.ll-off').count() === 1);
+  await page.locator('.ll-badge-toggle').click();
+  t('toggle on: viewers back', await page.locator('.ll-root:visible').count() === 2);
+  t('toggle on: original hidden again', await page.locator('#context-block:visible').count() === 0);
+
   /* ---- full page raw mode ---- */
   const page2 = await browser.newPage();
   await page2.goto('file://' + FIX + '/raw.txt');
@@ -76,6 +86,16 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   // raw toggle
   await page2.locator('.ll-btn2', { hasText: /^raw$/ }).click();
   t('raw: toggle shows original', await page2.locator('.ll-raw:visible').count() === 1);
+  await page2.locator('.ll-btn2', { hasText: /^raw$/ }).click();
+
+  // on/off pill in full-page mode restores the original document
+  await page2.locator('.ll-badge-toggle').click();
+  t('raw toggle off: original body restored',
+    await page2.locator('body:not(.ll-page)').count() === 1 &&
+    await page2.locator('.ll-root').count() === 0 &&
+    (await page2.locator('body').textContent()).includes('location-details'));
+  await page2.locator('.ll-badge-toggle').click();
+  t('raw toggle on: viewer restored', await page2.locator('body.ll-page .ll-root').count() === 1);
 
   /* ---- huge payload sanity (chunking + search perf) ---- */
   const page3 = await browser.newPage();

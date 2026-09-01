@@ -136,3 +136,22 @@ body.ll-page { margin: 0; background: #fff; }
 .ll-hidden-original { display: none !important; }
 .ll-inline-holder { all: initial; display: block; }
 .ll-inline-holder * { box-sizing: border-box; }
+
+/* floating on/off pill */
+.ll-badge-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483646;
+  font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 9px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+  border: 1px solid transparent;
+}
+.ll-badge-toggle.ll-on { background: #4653c6; color: #fff; border-color: #4653c6; }
+.ll-badge-toggle.ll-on:hover { background: #37429e; }
+.ll-badge-toggle.ll-off { background: #fff; color: #5a6472; border-color: #c3cad4; }
+.ll-badge-toggle.ll-off:hover { background: #e8ecf2; }
