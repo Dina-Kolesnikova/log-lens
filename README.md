@@ -10,6 +10,9 @@ Everything runs locally inside the page — **no data ever leaves the browser**.
 Logs often carry auth tokens and PII; Log Lens makes no network requests and
 collects nothing.
 
+**📖 Full instructions: [docs/USER-GUIDE.md](docs/USER-GUIDE.md)** — every
+feature, task by task, with troubleshooting.
+
 ## How it runs
 
 - **Auto-run sites** — add your own log-viewer URLs in the extension options
