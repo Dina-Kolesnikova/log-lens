@@ -506,6 +506,35 @@
     rootEl.appendChild(rawPre);
     container.appendChild(rootEl);
 
+    /* smart copy — a selection spanning several rows copies real JSON of the
+       smallest object/array containing it, taken from the parsed data, so
+       collapsed children are included too. A selection inside a single row
+       keeps native plain-text copy (grab one token/id as usual). */
+    rootEl.addEventListener('copy', (e) => {
+      const selection = window.getSelection && window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      const rowOf = (n) => {
+        const elm = n && n.nodeType === 3 ? n.parentElement : n;
+        return elm && elm.closest ? elm.closest('.ll-row') : null;
+      };
+      const startRow = rowOf(range.startContainer);
+      const endRow = rowOf(range.endContainer);
+      if (startRow && startRow === endRow) return; // within one row → plain text
+      let anc = range.commonAncestorContainer;
+      if (anc && anc.nodeType === 3) anc = anc.parentElement;
+      let nodeEl = anc && anc.closest ? anc.closest('.ll-node') : null;
+      while (nodeEl && !nodeEl.__ll) nodeEl = nodeEl.parentElement && nodeEl.parentElement.closest('.ll-node');
+      if (!nodeEl || !nodeEl.__ll) return;
+      const raw = nodeEl.__ll.value;
+      const eff = tryParseJsonString(raw) || raw;
+      if (!isObj(eff)) return; // scalar → nothing better than the native text
+      try {
+        e.clipboardData.setData('text/plain', JSON.stringify(eff, null, 2));
+        e.preventDefault();
+      } catch (err) { /* clipboard unavailable — fall back to native copy */ }
+    });
+
     /* search state */
     const state = { matches: [], idx: -1, capped: false };
     let marked = [];

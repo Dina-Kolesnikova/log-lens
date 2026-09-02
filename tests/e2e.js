@@ -135,12 +135,59 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   t('copy: object row pill reads "copy JSON"', (await objCopy.textContent()) === 'copy JSON');
   const toolsBox = await objRow.locator('.ll-tools').boundingBox();
   const rowBox = await objRow.boundingBox();
-  t('copy: actions pinned to the row right edge',
-    Math.abs((rowBox.x + rowBox.width) - (toolsBox.x + toolsBox.width)) < 14);
+  t('copy: actions sit next to the row text, not at the window edge',
+    toolsBox.x - rowBox.x < 200 && (rowBox.x + rowBox.width) - toolsBox.x > 200);
   await objCopy.click();
   await page.waitForTimeout(120);
   t('copy: click confirms with ✓', (await objCopy.textContent()) === '✓');
   await page.waitForTimeout(700);
+
+  /* ---- smart copy (selection → JSON) ---- */
+  await page.evaluate(() => {
+    window.__copied = null;
+    document.addEventListener('copy', (e) => { window.__copied = e.clipboardData.getData('text/plain'); });
+  });
+  async function selectRows(fromText, toText) {
+    const a = await page.locator('.ll-row', { hasText: fromText }).first().boundingBox();
+    const b = await page.locator('.ll-row', { hasText: toText }).first().boundingBox();
+    await page.mouse.move(a.x + 30, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + 90, b.y + b.height / 2, { steps: 8 });
+    await page.mouse.up();
+  }
+
+  await selectRows('roomRates', 'acmesupplier');
+  await page.evaluate(() => { window.__copied = null; document.execCommand('copy'); });
+  const copied = await page.evaluate(() => window.__copied);
+  let parsed = null;
+  try { parsed = JSON.parse(copied); } catch (e) { /* left null */ }
+  t('smartcopy: multi-row selection copies JSON', parsed !== null);
+  t('smartcopy: JSON carries the values', parsed && parsed.supplier === 'acmesupplier' &&
+    Array.isArray(parsed.roomRates) && parsed.roomRates.length === 5);
+
+  // collapsed children must still be present in the copied JSON
+  await page.locator('.ll-btn2', { hasText: /^1$/ }).first().click(); // collapse to depth 1
+  await page.waitForTimeout(150);
+  await selectRows('request', 'response');
+  await page.evaluate(() => { window.__copied = null; document.execCommand('copy'); });
+  const copied2 = await page.evaluate(() => window.__copied);
+  let parsed2 = null;
+  try { parsed2 = JSON.parse(copied2); } catch (e) { /* left null */ }
+  t('smartcopy: collapsed children included',
+    parsed2 && parsed2.response && parsed2.response.supplier === 'acmesupplier');
+
+  // a selection inside a single row keeps native plain-text copy
+  await page.locator('.ll-btn2', { hasText: /^all$/ }).first().click();
+  await page.waitForTimeout(150);
+  const one = await page.locator('.ll-string', { hasText: 'acmesupplier' }).first().boundingBox();
+  await page.mouse.move(one.x + 4, one.y + one.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(one.x + one.width - 4, one.y + one.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await page.evaluate(() => { window.__copied = null; document.execCommand('copy'); });
+  const copied3 = await page.evaluate(() => window.__copied);
+  t('smartcopy: single-row selection stays plain text', !copied3);
+  await page.evaluate(() => window.getSelection().removeAllRanges());
 
   t('toolbar: inspector button gone', await page.locator('.ll-btn2', { hasText: /^inspector$/ }).count() === 0);
   t('toolbar: no inspector pane', await page.locator('.ll-inspector').count() === 0);

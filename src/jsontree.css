@@ -202,22 +202,16 @@ body.ll-page { margin: 0; background: var(--ll-bg, #f1e8d5); }
 .ll-trunc { cursor: pointer; border-bottom: 1px dashed var(--_string); }
 
 /* per-row hover pills */
-/* Row actions sit at one predictable spot — the right edge of the row —
-   so a long value can never push them out of reach. */
+/* Row actions sit right after the row's own text, so they are always within
+   a few pixels of the key you are hovering — never off at the window edge. */
 .ll-tools {
   display: none;
-  position: absolute;
-  top: 1px;
-  right: 6px;
+  margin-left: 8px;
   white-space: nowrap;
   user-select: none;
   -webkit-user-select: none;
-  background: var(--_hover);
-  border-radius: 999px;
-  padding: 0 2px;
-  box-shadow: -6px 0 6px var(--_hover);
 }
-.ll-row:hover > .ll-tools { display: inline-block; }
+.ll-row:hover > .ll-tools { display: inline; }
 .ll-btn {
   font-size: 10px;
   font-family: inherit;

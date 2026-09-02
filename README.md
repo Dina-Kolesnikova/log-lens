@@ -39,11 +39,13 @@ Two detection modes, applied automatically:
   str→json nodes.
 - **Row actions**: hover any row for `copy JSON` (the whole object/array,
   pretty-printed), `copy` (a single value) and `path`
-  (e.g. `$.request.headers.authorization[0]`). They always sit at the row's
-  right edge, so a long value never pushes them out of reach.
-- **Normal text selection**: drag-select anywhere in the tree and copy with
-  the keyboard — selecting never expands or collapses a node, and the `▶`
-  glyphs and button labels stay out of the copied text.
+  (e.g. `$.request.headers.authorization[0]`), shown right beside the row's
+  own text.
+- **Smart copy**: drag-select across rows and press Cmd/Ctrl+C — you get real
+  JSON of the smallest object/array covering the selection, **including parts
+  that are still collapsed**. Selecting inside a single row copies plain text
+  as usual, so you can still grab one id or token. Selecting never expands or
+  collapses a node, and the `▶` glyphs and button labels stay out of the copy.
 - **`str→json` badge**: a string value that contains JSON is parsed and
   rendered as a subtree. `copy` still copies the original string.
 - **raw** button restores the original text at any time; **copy JSON**
