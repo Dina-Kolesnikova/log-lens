@@ -207,7 +207,7 @@
         if (prev) prev.hidden = true;
       } else {
         kids.hidden = true;
-        tg.textContent = '▶';
+        tg.textContent = '▸';
         if (prev) prev.hidden = false;
       }
     }
@@ -239,43 +239,68 @@
 
     /* ----- bulk expand / collapse ----- */
 
-    expandToDepth(depth) {
+    // Where a bulk expand/collapse starts. While the matches-only filter is on
+    // the rest of the document is hidden, so spending the budget out there
+    // meant "all" never reached the matches the user was looking at.
+    bulkRoots() {
+      if (!this.root.classList.contains('ll-filtering')) return [this.rootNode];
+      const hits = Array.from(this.root.querySelectorAll('.ll-keep-hit'));
+      // a hit nested inside another hit is already covered by it
+      return hits.filter((n) => !(n.parentElement && n.parentElement.closest('.ll-keep-hit')));
+    }
+
+    expandToDepth(depth, roots) {
       let budget = EXPAND_BUDGET;
       const rec = (node, d) => {
-        if (budget-- < 0) return;
+        if (!node.__ll || node.__ll.child === undefined) return; // leaf: free
+        if (budget-- <= 0) return;
         this.setExpanded(node, true);
         if (d <= 1) return;
         const kids = node.querySelector(':scope > .ll-children');
         if (!kids) return;
-        for (const c of kids.children) {
-          if (c.__ll && c.__ll.child !== undefined) rec(c, d - 1);
-        }
+        for (const c of kids.children) rec(c, d - 1);
       };
-      rec(this.rootNode, depth);
-    }
-
-    setDepth(depth) {
-      this.collapseAll();
-      this.expandToDepth(depth);
-    }
-
-    expandAll() {
-      let budget = EXPAND_BUDGET;
-      const stack = [this.rootNode];
-      while (stack.length && budget-- > 0) {
-        const node = stack.pop();
-        if (node.__ll.child === undefined) continue;
-        this.setExpanded(node, true);
-        const kids = node.querySelector(':scope > .ll-children');
-        for (const c of kids.children) if (c.__ll) stack.push(c);
-      }
+      for (const r of (roots || this.bulkRoots())) rec(r, depth);
       return budget > 0;
     }
 
-    collapseAll() {
-      this.root.querySelectorAll('.ll-children').forEach((k) => {
+    setDepth(depth) {
+      const roots = this.bulkRoots();
+      if (this.root.classList.contains('ll-filtering')) {
+        // collapsing everything would close the ancestor chain that keeps the
+        // matches on screen — stay inside each match instead
+        for (const r of roots) this.collapseWithin(r);
+      } else {
+        this.collapseAll();
+      }
+      return this.expandToDepth(depth, roots);
+    }
+
+    // The budget counts containers actually expanded, not nodes visited: a
+    // wide array of scalars used to eat the whole cap on its leaves.
+    expandAll(roots) {
+      let budget = EXPAND_BUDGET;
+      const stack = (roots || this.bulkRoots()).slice();
+      while (stack.length) {
+        const node = stack.pop();
+        if (!node.__ll || node.__ll.child === undefined) continue;
+        if (budget-- <= 0) return false;
+        this.setExpanded(node, true);
+        const kids = node.querySelector(':scope > .ll-children');
+        if (!kids) continue;
+        for (const c of kids.children) if (c.__ll) stack.push(c);
+      }
+      return true;
+    }
+
+    collapseWithin(el) {
+      el.querySelectorAll('.ll-children').forEach((k) => {
         if (!k.hidden) this.setExpanded(k.parentElement, false);
       });
+    }
+
+    collapseAll() {
+      this.collapseWithin(this.root);
     }
 
     /* ----- search ----- */
@@ -346,9 +371,9 @@
       this.root.querySelectorAll('.ll-keep-anc, .ll-keep-hit')
         .forEach((e) => e.classList.remove('ll-keep-anc', 'll-keep-hit'));
       if (!on) return;
-      const cap = Math.min(matches.length, 500);
-      for (let i = 0; i < cap; i++) {
+      for (let i = 0; i < matches.length; i++) {
         const nodeEl = this.ensureRendered(matches[i].path);
+        if (nodeEl.parentElement && nodeEl.parentElement.closest('.ll-keep-hit')) continue; // shown by CSS already
         nodeEl.classList.add('ll-keep-hit');
         let p = nodeEl.parentElement;
         while (p && p !== this.root) {
@@ -557,7 +582,25 @@
       target.classList.add('ll-hit', 'll-current-hit');
       marked.push(target);
       target.scrollIntoView({ block: 'center' });
-      count.textContent = (state.idx + 1) + ' / ' + state.matches.length + (state.capped ? '+' : '');
+      restoreCount();
+    }
+
+    // The one place that renders .ll-count, so a transient message (an expand
+    // cap) can always hand the real search state back.
+    function restoreCount() {
+      if (state.matches.length) {
+        const total = state.matches.length + (state.capped ? '+' : '');
+        count.textContent = state.idx >= 0 ? (state.idx + 1) + ' / ' + total : total;
+      } else {
+        count.textContent = searchIn.value.trim() ? '0' : '';
+      }
+    }
+
+    let flashT = null;
+    function flash(msg) {
+      count.textContent = msg;
+      clearTimeout(flashT);
+      flashT = setTimeout(restoreCount, 2500);
     }
 
     function applyFilterAll(on) {
@@ -572,13 +615,13 @@
       state.matches = [];
       state.idx = -1;
       applyFilterAll(false);
-      if (!q) { count.textContent = ''; return; }
+      if (!q) { restoreCount(); return; }
       for (const t of trees) {
         for (const m of t.search(q)) state.matches.push({ tree: t, path: m.path, where: m.where });
         if (state.matches.length >= MAX_MATCHES) break;
       }
       state.capped = state.matches.length >= MAX_MATCHES;
-      if (!state.matches.length) { count.textContent = '0'; return; }
+      if (!state.matches.length) { restoreCount(); return; }
       if (filterCb.checked) applyFilterAll(true);
       goTo(0);
     }
@@ -600,17 +643,26 @@
       if (state.matches.length) applyFilterAll(filterCb.checked);
     });
 
-    b1.addEventListener('click', () => trees.forEach((t) => t.setDepth(1)));
-    b2.addEventListener('click', () => trees.forEach((t) => t.setDepth(2)));
-    b3.addEventListener('click', () => trees.forEach((t) => t.setDepth(3)));
+    function bulkDepth(d) {
+      const ok = trees.map((t) => t.setDepth(d)).every(Boolean);
+      if (!ok) flash('expanded first ' + EXPAND_BUDGET + ' nodes');
+    }
+    b1.addEventListener('click', () => bulkDepth(1));
+    b2.addEventListener('click', () => bulkDepth(2));
+    b3.addEventListener('click', () => bulkDepth(3));
     bAll.addEventListener('click', () => {
       const ok = trees.map((t) => t.expandAll()).every(Boolean);
-      if (!ok) {
-        count.textContent = 'expanded first ' + EXPAND_BUDGET + ' nodes';
-        setTimeout(() => { if (!state.matches.length) count.textContent = ''; }, 2500);
-      }
+      if (!ok) flash('expanded first ' + EXPAND_BUDGET + ' nodes');
     });
-    bCol.addEventListener('click', () => trees.forEach((t) => { t.collapseAll(); t.setExpanded(t.rootNode, true); }));
+    bCol.addEventListener('click', () => trees.forEach((t) => {
+      if (t.root.classList.contains('ll-filtering')) {
+        // keep the matches on screen — collapse only what is inside them
+        for (const r of t.bulkRoots()) t.collapseWithin(r);
+      } else {
+        t.collapseAll();
+        t.setExpanded(t.rootNode, true);
+      }
+    }));
 
     bCopy.addEventListener('click', () => {
       const jsonSegs = input.segments.filter((s) => s.type === 'json');

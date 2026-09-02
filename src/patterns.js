@@ -107,7 +107,7 @@
   }
 
   /* A `*` inside a label stays inside it: `*-staging.example.com` matches
-   * `stg29-staging.example.com` but not `a.b-staging.example.com`. */
+   * `stg7-staging.example.com` but not `a.b-staging.example.com`. */
   function labelRe(label) {
     return label.split('*').map(esc).join('[^.]*');
   }

@@ -58,7 +58,10 @@ Two detection modes, applied automatically:
 - **Search** matches keys and values, *including inside collapsed nodes and
   inside parsed JSON-strings*. Enter/Shift+Enter or ◀ ▶ jump between matches;
   "matches only" hides everything else.
-- **Depth buttons** `1 2 3 all −` to expand/collapse in one click.
+- **Depth buttons** `1 2 3 all −` to expand/collapse in one click. While
+  **matches only** is on they act *inside the matches* — `all` expands every
+  matched subtree, `1 2 3` go N levels deep under each match — so the expand
+  budget is never spent on the part of the document the filter is hiding.
 - **Hover any row** → `copy` (value, or subtree as pretty JSON), `path`
   (e.g. `$.request.headers.authorization[0]`), and `copy parsed` on
   str→json nodes.
@@ -137,9 +140,12 @@ node tests/ext_smoke.js       # loads the unpacked extension (service worker,
 
 ## Known limits
 
-- "expand all" caps at 25k nodes on giant payloads (a note appears); search
+- "expand all" caps at 25k *expanded containers* on giant payloads; a note
+  flashes in the toolbar and the match counter comes back afterwards. Search
   still covers everything because it walks the data, not the DOM.
-- Search caps at 2000 matches (shown as `2000+`).
+- Search caps at 2000 matches (shown as `2000+`). **matches only** then keeps
+  every match it found, so on a huge log with thousands of matches ticking it
+  can block the tab for a moment while it renders each match's path.
 - If a JSON block on some viewer isn't auto-detected (exotic markup), use
   the toolbar button — and open an issue with the page structure so an
   adapter can be added.

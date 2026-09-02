@@ -10,17 +10,17 @@ const STG = 'https://*-staging.example.com/log-viewer/*';
 eq('mid-host: not a Chrome pattern', P.isChromePattern(STG), false);
 eq('mid-host: grant widens to the domain', P.toGrantOrigin(STG), 'https://*.example.com/*');
 t('mid-host: matches the staging host',
-  P.matchesUrl(STG, 'https://stg29-staging.example.com/log-viewer/log-123'));
+  P.matchesUrl(STG, 'https://stg7-staging.example.com/log-viewer/log-123'));
 t('mid-host: matches another staging host',
   P.matchesUrl(STG, 'https://stg1-staging.example.com/log-viewer/log-abc?raw=1'));
 t('mid-host: rejects a sibling host in the granted domain',
   !P.matchesUrl(STG, 'https://www.example.com/log-viewer/log-123'));
 t('mid-host: rejects another path on a matching host',
-  !P.matchesUrl(STG, 'https://stg29-staging.example.com/dashboard'));
+  !P.matchesUrl(STG, 'https://stg7-staging.example.com/dashboard'));
 t('mid-host: label wildcard does not cross a dot',
   !P.matchesUrl(STG, 'https://a.b-staging.example.com/log-viewer/x'));
 t('mid-host: rejects a lookalike domain',
-  !P.matchesUrl(STG, 'https://stg29-staging.example.com.evil.test/log-viewer/x'));
+  !P.matchesUrl(STG, 'https://stg7-staging.example.com.evil.test/log-viewer/x'));
 
 eq('wildcard in a middle label widens past it',
   P.toGrantOrigin('https://foo.*.example.com/*'), 'https://*.example.com/*');

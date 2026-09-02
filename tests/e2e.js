@@ -252,6 +252,114 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   await page3.waitForTimeout(1500);
   t('big: match in chunked tail reachable', await page3.locator('.ll-current-hit').count() === 1);
 
+  /* ---- filtered search + bulk expand (regression: "all" did nothing) ----
+   * Every entry carries a fat `history` array, so a whole-document expand
+   * really does run past EXPAND_BUDGET — which is why the old expandAll(),
+   * walking from the root and spending budget on leaves too, never reached the
+   * matched nodes the filter had left on screen. */
+  const page4 = await browser.newPage();
+  await page4.setContent('<pre id="big"></pre>');
+  await page4.evaluate(() => {
+    const rates = [];
+    for (let i = 0; i < 1500; i++) {
+      const history = [];
+      for (let h = 0; h < 20; h++) history.push({ step: h, at: '2026-09-01T00:00:0' + (h % 10) + 'Z', by: 'svc' });
+      rates.push({
+        hotelId: 'H' + i,
+        roomCode: 'RC' + i,
+        tags: ['refundable', 'breakfast', 'wifi'],
+        taxes: { hotelTax: i * 0.1, cityTax: 2, total: i * 0.1 + 2 },
+        history,
+        rate: {
+          baseAmount: 100 + i,
+          currency: 'CAD',
+          cancellationPolicy: [{ amount: 250 + i, currency: 'CAD', fromDate: '2026-09-01', penaltyType: 'FIXED' }],
+        },
+      });
+    }
+    document.getElementById('big').textContent = JSON.stringify(rates);
+  });
+  await inject(page4);
+  await page4.waitForTimeout(400);
+  const cnt4 = page4.locator('.ll-count');
+  await page4.locator('.ll-search').fill('cancellationPolicy');
+  await page4.waitForTimeout(1200);
+  t('filter: 1500 key matches found', /1\s*\/\s*1500/.test(await cnt4.textContent()));
+
+  await page4.locator('.ll-filterlbl input').check();
+  await page4.waitForFunction(() => document.querySelectorAll('.ll-keep-hit').length >= 1500,
+    null, { timeout: 30000 }).catch(() => {});
+  t('filter: every match kept, none silently dropped',
+    await page4.locator('.ll-keep-hit').count() === 1500);
+
+  await page4.locator('.ll-group button', { hasText: /^all$/ }).click();
+  await page4.waitForFunction(() => {
+    const hits = Array.from(document.querySelectorAll('.ll-keep-hit'));
+    return hits.length > 0 && hits.every((n) => {
+      const k = n.querySelector(':scope > .ll-children');
+      return k && !k.hidden;
+    });
+  }, null, { timeout: 30000 }).catch(() => {});
+  const openState = await page4.evaluate(() => {
+    const hits = Array.from(document.querySelectorAll('.ll-keep-hit'));
+    const open = hits.filter((n) => {
+      const k = n.querySelector(':scope > .ll-children');
+      const tg = n.querySelector(':scope > .ll-row > .ll-toggle');
+      return k && !k.hidden && tg && tg.textContent === '\u25bc';
+    });
+    return { total: hits.length, open: open.length };
+  });
+  t('all: every match expanded (' + openState.open + '/' + openState.total + ')',
+    openState.total === 1500 && openState.open === 1500);
+  t('all: a leaf inside a match is actually visible',
+    await page4.locator('.ll-keep-hit .ll-key', { hasText: 'penaltyType' }).first().isVisible());
+  t('all: budget not spent on the hidden document',
+    !/expanded first/.test(await cnt4.textContent()));
+  t('all: match counter survives the expand',
+    /1\s*\/\s*1500/.test(await cnt4.textContent()));
+
+  await page4.locator('.ll-group button', { hasText: /^2$/ }).click();
+  await page4.waitForTimeout(500);
+  t('depth 2 during a filtered search keeps the matches on screen',
+    await page4.locator('.ll-keep-hit').first().isVisible());
+  await page4.locator('.ll-group button', { hasText: '\u2212' }).click();
+  await page4.waitForTimeout(500);
+  t('collapse during a filtered search keeps the matches on screen',
+    await page4.locator('.ll-keep-hit').first().isVisible());
+
+  await page4.locator('.ll-filterlbl input').uncheck();
+  await page4.waitForTimeout(300);
+  t('unfiltered again: non-matching siblings are back',
+    await page4.locator('.ll-key', { hasText: 'hotelId' }).first().isVisible());
+
+  /* ---- the cap message is still shown when it is real, and still hands the
+   * counter back afterwards. Separate payload: 200 x 200 objects is past the
+   * budget while staying cheap to render. ---- */
+  const page5 = await browser.newPage();
+  await page5.setContent('<pre id="deep"></pre>');
+  await page5.evaluate(() => {
+    const doc = { needle_key: 'find-me' };
+    for (let i = 0; i < 200; i++) {
+      const inner = {};
+      for (let j = 0; j < 200; j++) inner['k' + j] = { v: j };
+      doc['g' + i] = inner;
+    }
+    document.getElementById('deep').textContent = JSON.stringify(doc);
+  });
+  await inject(page5);
+  await page5.waitForTimeout(300);
+  const cnt5 = page5.locator('.ll-count');
+  await page5.locator('.ll-search').fill('find-me');
+  await page5.waitForTimeout(600);
+  t('cap: search finds the needle', /1\s*\/\s*1/.test(await cnt5.textContent()));
+  await page5.locator('.ll-group button', { hasText: /^all$/ }).click();
+  const capped = await page5.waitForFunction(
+    () => /expanded first/.test(document.querySelector('.ll-count').textContent),
+    null, { timeout: 30000 }).then(() => true).catch(() => false);
+  t('cap: reported when the budget really runs out', capped);
+  await page5.waitForTimeout(2800);
+  t('cap: counter restored after the message', /1\s*\/\s*1/.test(await cnt5.textContent()));
+
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
