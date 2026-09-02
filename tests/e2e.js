@@ -113,25 +113,37 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   await page.waitForTimeout(300);
   t('tabscope: ON also survives reload', await page.locator('.ll-root:visible').count() === 1);
 
-  /* ---- inspector ---- */
-  const insp1 = page.locator('.ll-inspector').first();
-  t('inspector: hidden by default', !(await insp1.isVisible()));
-  await page.locator('.ll-btn2', { hasText: /^inspector$/ }).first().click();
-  t('inspector: toolbar button opens it', await insp1.isVisible());
-  await page.locator('.ll-string').first().click();
-  t('inspector: clicking a row selects it', await page.locator('.ll-row.ll-selected').count() === 1);
-  t('inspector: path shown for selection',
-    (await page.locator('.ll-insp-path').first().textContent()).startsWith('$.'));
-  await page.locator('.ll-row.ll-selected').first().click();
-  t('inspector: clicking the row again unselects', await page.locator('.ll-row.ll-selected').count() === 0);
-  t('inspector: empty state after unselect',
-    (await page.locator('.ll-insp-value').first().textContent()).includes('Click any row'));
-  await page.locator('.ll-insp-close').first().click();
-  t('inspector: × closes the pane', !(await insp1.isVisible()));
-  await page.locator('.ll-val').first().dblclick();
-  t('inspector: double-click opens pane', await insp1.isVisible());
-  t('inspector: double-click selects the row', await page.locator('.ll-row.ll-selected').count() === 1);
-  await page.locator('.ll-insp-close').first().click(); // leave closed = default for later tests
+  /* ---- text selection & row copy actions ---- */
+  // dragging across rows must select text, never toggle a node
+  const rowA = await page.locator('.ll-row', { hasText: 'roomRates' }).first().boundingBox();
+  const rowB = await page.locator('.ll-row', { hasText: 'acmesupplier' }).first().boundingBox();
+  await page.mouse.move(rowA.x + 30, rowA.y + rowA.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rowB.x + 90, rowB.y + rowB.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const selText = await page.evaluate(() => String(window.getSelection()));
+  t('selection: drag selects text', selText.length > 5);
+  t('selection: drag did not collapse the tree',
+    await page.locator('.ll-string', { hasText: 'acmesupplier' }).count() === 1);
+  t('selection: toggle glyphs excluded from copied text', !selText.includes('▶') && !selText.includes('▼'));
+  await page.evaluate(() => window.getSelection().removeAllRanges());
+
+  // object rows offer a clearly-labelled subtree copy, pinned to the row's right edge
+  const objRow = page.locator('.ll-row', { hasText: 'response' }).first();
+  await objRow.hover();
+  const objCopy = objRow.locator('.ll-btn').first();
+  t('copy: object row pill reads "copy JSON"', (await objCopy.textContent()) === 'copy JSON');
+  const toolsBox = await objRow.locator('.ll-tools').boundingBox();
+  const rowBox = await objRow.boundingBox();
+  t('copy: actions pinned to the row right edge',
+    Math.abs((rowBox.x + rowBox.width) - (toolsBox.x + toolsBox.width)) < 14);
+  await objCopy.click();
+  await page.waitForTimeout(120);
+  t('copy: click confirms with ✓', (await objCopy.textContent()) === '✓');
+  await page.waitForTimeout(700);
+
+  t('toolbar: inspector button gone', await page.locator('.ll-btn2', { hasText: /^inspector$/ }).count() === 0);
+  t('toolbar: no inspector pane', await page.locator('.ll-inspector').count() === 0);
 
   /* ---- theming ---- */
   await page.evaluate(() => window.LogLens.applyTheme({ key: '#ff0000', fontSize: 15, accent: '#008000' }));

@@ -44,6 +44,19 @@
     return out;
   }
 
+  // Fires only for a real click: not after a drag, and not while the user
+  // has text selected — so selecting text in the tree never toggles a node.
+  function onPlainClick(target, fn) {
+    let sx = 0, sy = 0;
+    target.addEventListener('mousedown', (e) => { sx = e.clientX; sy = e.clientY; });
+    target.addEventListener('click', (e) => {
+      if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 5) return;
+      const seltxt = window.getSelection ? String(window.getSelection()) : '';
+      if (seltxt) return;
+      fn(e);
+    });
+  }
+
   function el(tag, cls, text) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -119,16 +132,18 @@
         kids.hidden = true;
         node.appendChild(kids);
         const toggle = () => this.setExpanded(node, kids.hidden);
-        tg.addEventListener('click', toggle);
-        prev.addEventListener('click', toggle);
-        keySpan.addEventListener('click', toggle);
+        onPlainClick(tg, toggle);
+        onPlainClick(prev, toggle);
+        onPlainClick(keySpan, toggle);
       } else {
         row.appendChild(this.renderScalar(value));
       }
 
       const tools = el('span', 'll-tools');
-      const bVal = el('button', 'll-btn', 'copy');
-      bVal.title = expandable ? 'Copy subtree as pretty JSON' : 'Copy value';
+      const bVal = el('button', 'll-btn', expandable ? 'copy JSON' : 'copy');
+      bVal.title = expandable
+        ? 'Copy this whole object/array as pretty-printed JSON'
+        : 'Copy this value';
       bVal.addEventListener('click', (e) => {
         e.stopPropagation();
         let text;
@@ -418,7 +433,6 @@
     const rootEl = el('div', 'll-root' + (opts.full ? ' ll-full' : ''));
     const bar = el('div', 'll-bar');
     const body = el('div', 'll-body');
-    const main = el('div', 'll-main');
     const treePane = el('div', 'll-treepane');
     const rawPre = el('pre', 'll-raw');
     rawPre.hidden = true;
@@ -477,9 +491,8 @@
 
     const bCopy = tbtn('copy JSON', 'Copy the full JSON (pretty-printed)');
     const bRaw = tbtn('raw', 'Toggle original raw text');
-    const bInsp = tbtn('inspector', 'Show or hide the inspector pane (or double-click any row to inspect it)');
 
-    const items = [brand, searchWrap, filterLbl, group, el('span', 'll-spacer'), bInsp, bCopy, bRaw];
+    const items = [brand, searchWrap, filterLbl, group, el('span', 'll-spacer'), bCopy, bRaw];
     if (opts.onPowerOff) {
       const bOff = tbtn('off', 'Switch this site back to the original log view (re-enable via the floating pill or the toolbar popup)', 'll-power');
       bOff.addEventListener('click', () => opts.onPowerOff());
@@ -487,193 +500,11 @@
     }
     items.forEach((x) => bar.appendChild(x));
 
-    /* inspector pane */
-    const insp = el('div', 'll-inspector');
-    const bInspClose = el('button', 'll-insp-close', '×');
-    bInspClose.title = 'Hide the inspector (reopen with the "inspector" toolbar button)';
-    insp.appendChild(bInspClose);
-    const inspPath = el('div', 'll-insp-path', '—');
-    const pillRow = el('div', 'll-insp-pills');
-    const typePill = el('span', 'll-pill ll-pill-type', '');
-    const sizePill = el('span', 'll-pill', '');
-    pillRow.appendChild(typePill);
-    pillRow.appendChild(sizePill);
-    const valBox = el('pre', 'll-insp-value', '');
-    const bSub = el('button', 'll-insp-primary', 'copy subtree');
-    const rowBtns = el('div', 'll-insp-row');
-    const bIPath = tbtn('copy path', 'Copy the JSON path of the selected node');
-    const bICol = tbtn('collapse', 'Collapse the selected node in the tree');
-    rowBtns.appendChild(bIPath);
-    rowBtns.appendChild(bICol);
-    const findWrap = el('div', 'll-insp-findwrap');
-    const findIn = el('input', 'll-insp-find');
-    findIn.placeholder = 'find';
-    findWrap.appendChild(findIn);
-    findWrap.appendChild(el('span', 'll-kbd', '/'));
-    const keyList = el('div', 'll-insp-keys');
-    [el('div', 'll-insp-label', 'SELECTED'), inspPath, pillRow,
-     el('div', 'll-insp-label', 'VALUE'), valBox, bSub, rowBtns,
-     el('div', 'll-insp-label', 'KEYS'), findWrap, keyList]
-      .forEach((x) => insp.appendChild(x));
-
-    let inspHidden = true; // closed by default — open on demand
-    try { inspHidden = localStorage.getItem('ll-insp-open') !== '1'; } catch (e) { /* no storage */ }
-    function applyInspVisibility() {
-      insp.classList.toggle('ll-insp-hidden', inspHidden);
-      bInsp.classList.toggle('ll-active', !inspHidden);
-    }
-    function setInspHidden(hidden) {
-      inspHidden = hidden;
-      try { localStorage.setItem('ll-insp-open', hidden ? '0' : '1'); } catch (e) { /* non-persistent */ }
-      applyInspVisibility();
-    }
-    bInsp.addEventListener('click', () => setInspHidden(!inspHidden));
-    bInspClose.addEventListener('click', () => setInspHidden(true));
-    applyInspVisibility();
-
-    main.appendChild(treePane);
-    main.appendChild(insp);
-    body.appendChild(main);
+    body.appendChild(treePane);
     rootEl.appendChild(bar);
     rootEl.appendChild(body);
     rootEl.appendChild(rawPre);
     container.appendChild(rootEl);
-
-    /* selection */
-    const sel = { tree: null, node: null };
-
-    function describe(v) {
-      const parsed = tryParseJsonString(v);
-      const eff = parsed || v;
-      const t = typeOf(eff);
-      let size = '';
-      if (t === 'array') size = eff.length + (eff.length === 1 ? ' item' : ' items');
-      else if (t === 'object') {
-        const n = Object.keys(eff).length;
-        size = n + (n === 1 ? ' key' : ' keys');
-      } else if (typeof v === 'string') size = v.length + ' chars';
-      return { eff, label: parsed ? t + ' ⟵ string' : t, size };
-    }
-
-    function deselect() {
-      if (sel.node) {
-        const r = sel.node.querySelector(':scope > .ll-row');
-        if (r) r.classList.remove('ll-selected');
-      }
-      sel.tree = null;
-      sel.node = null;
-      inspPath.textContent = '—';
-      typePill.hidden = true;
-      sizePill.hidden = true;
-      valBox.textContent = 'Click any row in the tree to inspect it here: full value with no truncation, copy actions, and its keys.';
-      bSub.textContent = 'copy value';
-      bSub.disabled = true;
-      bIPath.disabled = true;
-      bICol.disabled = true;
-      keyList.textContent = '';
-      keyList.appendChild(el('div', 'll-insp-empty', 'nothing selected'));
-    }
-
-    function selectNode(tree, node) {
-      if (!node || !node.__ll) return;
-      if (sel.node) {
-        const r = sel.node.querySelector(':scope > .ll-row');
-        if (r) r.classList.remove('ll-selected');
-      }
-      sel.tree = tree;
-      sel.node = node;
-      typePill.hidden = false;
-      bSub.disabled = false;
-      bIPath.disabled = false;
-      const row = node.querySelector(':scope > .ll-row');
-      if (row) row.classList.add('ll-selected');
-      const { value, path } = node.__ll;
-      inspPath.textContent = pathToString(path);
-      const d = describe(value);
-      typePill.textContent = d.label;
-      sizePill.textContent = d.size;
-      sizePill.hidden = !d.size;
-      let text;
-      if (isObj(d.eff)) text = JSON.stringify(d.eff, null, 2);
-      else if (typeof value === 'string') text = value;
-      else text = String(value);
-      if (text.length > 120000) {
-        text = text.slice(0, 120000) + '\n… (' + text.length + ' chars — "' + (isObj(d.eff) ? 'copy subtree' : 'copy value') + '" copies everything)';
-      }
-      valBox.textContent = text;
-      bSub.textContent = isObj(d.eff) ? 'copy subtree' : 'copy value';
-      bICol.disabled = !isObj(d.eff);
-      renderKeys();
-    }
-
-    function renderKeys() {
-      keyList.textContent = '';
-      if (!sel.node) return;
-      const d = describe(sel.node.__ll.value);
-      if (!isObj(d.eff)) {
-        keyList.appendChild(el('div', 'll-insp-empty', 'scalar — no child keys'));
-        return;
-      }
-      const q = findIn.value.trim().toLowerCase();
-      const keys = Array.isArray(d.eff) ? d.eff.map((x, i) => String(i)) : Object.keys(d.eff);
-      let shown = 0;
-      for (const k of keys) {
-        if (q && !k.toLowerCase().includes(q)) continue;
-        if (shown >= 200) {
-          keyList.appendChild(el('div', 'll-insp-empty', '… and more — narrow with find'));
-          break;
-        }
-        shown++;
-        const kb = el('button', 'll-insp-key', k);
-        kb.addEventListener('click', () => {
-          const childKey = Array.isArray(d.eff) ? parseInt(k, 10) : k;
-          const childNode = sel.tree.ensureRendered(sel.node.__ll.path.concat([childKey]));
-          selectNode(sel.tree, childNode);
-          childNode.scrollIntoView({ block: 'center' });
-        });
-        keyList.appendChild(kb);
-      }
-      if (!shown && q) keyList.appendChild(el('div', 'll-insp-empty', 'no keys match'));
-    }
-
-    findIn.addEventListener('input', renderKeys);
-    rootEl.addEventListener('keydown', (e) => {
-      if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        findIn.focus();
-      }
-    });
-
-    bSub.addEventListener('click', () => {
-      if (!sel.node) return;
-      const v = sel.node.__ll.value;
-      copyText(isObj(v) ? JSON.stringify(v, null, 2) : (typeof v === 'string' ? v : String(v)), bSub);
-    });
-    bIPath.addEventListener('click', () => {
-      if (sel.node) copyText(pathToString(sel.node.__ll.path), bIPath);
-    });
-    bICol.addEventListener('click', () => {
-      if (sel.node && sel.tree) sel.tree.setExpanded(sel.node, false);
-    });
-
-    for (const t of trees) {
-      t.root.addEventListener('click', (e) => {
-        const row = e.target.closest && e.target.closest('.ll-row');
-        if (!row || !t.root.contains(row)) return;
-        if (sel.node === row.parentElement) { deselect(); return; } // click again = unselect
-        selectNode(t, row.parentElement);
-      });
-      t.root.addEventListener('dblclick', (e) => {
-        const row = e.target.closest && e.target.closest('.ll-row');
-        if (!row || !t.root.contains(row)) return;
-        selectNode(t, row.parentElement);
-        setInspHidden(false); // double-click = "inspect this"
-      });
-    }
-    rootEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') deselect();
-    });
-    if (trees.length) selectNode(trees[0], trees[0].rootNode);
 
     /* search state */
     const state = { matches: [], idx: -1, capped: false };
@@ -696,7 +527,6 @@
       rootEl.querySelectorAll('.ll-current-hit').forEach((s) => s.classList.remove('ll-current-hit'));
       target.classList.add('ll-hit', 'll-current-hit');
       marked.push(target);
-      selectNode(m.tree, node); // inspector follows search
       target.scrollIntoView({ block: 'center' });
       count.textContent = (state.idx + 1) + ' / ' + state.matches.length + (state.capped ? '+' : '');
     }

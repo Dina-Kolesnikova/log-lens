@@ -124,8 +124,14 @@
     });
     let n;
     while ((n = walker.nextNode())) candidates.push(n);
-    // drop candidates nested inside another candidate
-    const top = candidates.filter((c) => !candidates.some((o) => o !== c && o.contains(c)));
+    // drop candidates nested inside another candidate (ancestor walk, not O(n^2))
+    const candSet = new Set(candidates);
+    const top = candidates.filter((c) => {
+      for (let a = c.parentElement; a; a = a.parentElement) {
+        if (candSet.has(a)) return false;
+      }
+      return true;
+    });
     top.forEach(enhanceInline);
   }
 
@@ -157,7 +163,7 @@
     if (text && enhanceFullPage(text)) return; // static page, no observer needed
     scan(document.body);
     if (!moStarted && document.body) {
-      mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+      mo.observe(document.body, { childList: true, subtree: true });
       moStarted = true;
     }
   }
@@ -242,12 +248,6 @@
       const target = m.target;
       if (target && target.nodeType === 1 &&
           (target.closest('.ll-root') || target.closest('.ll-inline-holder'))) continue;
-      if (m.type === 'characterData') {
-        const p = target.parentElement;
-        if (p && (p.closest('.ll-root') || p.closest('.ll-inline-holder'))) continue;
-        schedule();
-        return;
-      }
       for (const nd of m.addedNodes) {
         if (nd.nodeType !== 1 && nd.nodeType !== 3) continue;
         const e = nd.nodeType === 1 ? nd : nd.parentElement;

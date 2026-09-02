@@ -37,13 +37,13 @@ Two detection modes, applied automatically:
 - **Hover any row** → `copy` (value, or subtree as pretty JSON), `path`
   (e.g. `$.request.headers.authorization[0]`), and `copy parsed` on
   str→json nodes.
-- **Inspector pane** (closed by default): double-click any row — or hit
-  the `inspector` toolbar button — to open a side pane with the node's
-  full value pretty-printed (no truncation), type/size pills, a
-  `copy subtree` button, `copy path`, `collapse`, and a KEYS finder
-  (press `/` to focus it). Click the selected row again (or press Esc)
-  to unselect; close the pane with its `×` — your open/closed choice is
-  remembered per site. Hidden automatically below ~900px.
+- **Row actions**: hover any row for `copy JSON` (the whole object/array,
+  pretty-printed), `copy` (a single value) and `path`
+  (e.g. `$.request.headers.authorization[0]`). They always sit at the row's
+  right edge, so a long value never pushes them out of reach.
+- **Normal text selection**: drag-select anywhere in the tree and copy with
+  the keyboard — selecting never expands or collapses a node, and the `▶`
+  glyphs and button labels stay out of the copied text.
 - **`str→json` badge**: a string value that contains JSON is parsed and
   rendered as a subtree. `copy` still copies the original string.
 - **raw** button restores the original text at any time; **copy JSON**
