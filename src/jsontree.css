@@ -276,3 +276,53 @@ body.ll-page { margin: 0; background: var(--ll-bg, #f1e8d5); }
   border-color: var(--ll-accent, #c96f2e);
 }
 
+
+/* ---------------- pin strip (watch strip) ---------------- */
+.ll-head { position: sticky; top: 0; z-index: 2147483000; }
+.ll-head .ll-bar { position: static; }
+.ll-pinstrip[hidden] { display: none; } /* author display:flex must not defeat the hidden attribute */
+.ll-pinstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 7px 12px;
+  background: var(--_bar-bg);
+  border-bottom: 1px solid var(--_border-soft);
+  font-size: var(--_fs);
+}
+.ll-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 10px;
+  background: var(--_pill-bg);
+  border: 1px solid var(--_border);
+  border-radius: 999px;
+  cursor: pointer;
+  max-width: 100%;
+  font-family: ui-monospace, Menlo, monospace;
+  color: var(--_fg);
+}
+.ll-pin:hover { background: var(--_hover); }
+.ll-pin-key { color: var(--_key); font-weight: 600; }
+.ll-pin-count { color: var(--_muted); font-size: 0.9em; white-space: nowrap; }
+.ll-pin-val {
+  color: var(--_fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 24ch;
+}
+.ll-pin-empty { cursor: default; opacity: 0.55; }
+.ll-pin-empty:hover { background: var(--_pill-bg); }
+.ll-pin-x {
+  border: 0;
+  background: none;
+  color: var(--_muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85em;
+  padding: 0 2px;
+  line-height: 1;
+}
+.ll-pin-x:hover { color: var(--_accent); }

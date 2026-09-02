@@ -360,6 +360,117 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   await page5.waitForTimeout(2800);
   t('cap: counter restored after the message', /1\s*\/\s*1/.test(await cnt5.textContent()));
 
+  /* ---- v1.8: pins, copy-as-table, tooltips, row links ---- */
+  const page6 = await browser.newPage();
+  page6.setDefaultTimeout(4000); // fail fast instead of hanging on a bad locator
+  await page6.setContent('<pre id="p"></pre>');
+  await page6.evaluate(() => {
+    const data = {
+      hotel: 'X',
+      rooms: [
+        { id: 1, name: 'King', price: { total: 1108.93, currency: 'CAD' }, tags: ['a', 'b'] },
+        { id: 2, name: 'Twin', price: { total: 989.1, currency: 'CAD' }, tags: ['c'] },
+        { id: 3, name: 'Suite', price: { total: 2000, currency: 'USD' }, tags: [] },
+      ],
+      meta: { created: '2026-08-27T14:47:44.115Z', big: 123456 },
+    };
+    document.getElementById('p').textContent = JSON.stringify(data);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: (t) => { window.__copiedText = t; return Promise.resolve(); } },
+      configurable: true,
+    });
+  });
+  await inject(page6);
+  await page6.waitForTimeout(300);
+
+  // tooltips (meta.* rendered at default depth 2)
+  const isoTitle = await page6.locator('.ll-val', { hasText: '2026-08-27T14:47' }).first().getAttribute('title');
+  t('tooltip: ISO timestamp gets local + relative time', !!isoTitle && /ago|from now/.test(isoTitle));
+  const numTitle = await page6.locator('.ll-val', { hasText: /^123456$/ }).first().getAttribute('title');
+  t('tooltip: big number gets thousands separators', !!numTitle && /123[,.  ']456/.test(numTitle));
+
+  // pins: render the deep rows, pin "total" from a row
+  await page6.locator('.ll-group button', { hasText: /^all$/ }).click();
+  await page6.waitForTimeout(200);
+  const totalRow = page6.locator('.ll-row', { has: page6.locator('.ll-key', { hasText: /^total$/ }) }).first();
+  await totalRow.hover();
+  await totalRow.locator('button', { hasText: /^pin$/ }).click();
+  await page6.waitForTimeout(100);
+  t('pins: strip appears', await page6.locator('.ll-pinstrip:visible').count() === 1);
+  t('pins: chip shows key', (await page6.locator('.ll-pin-key').first().textContent()) === 'total');
+  t('pins: chip shows occurrence count', /^3✕$/.test(await page6.locator('.ll-pin-count').first().textContent()));
+  t('pins: chip shows first value', (await page6.locator('.ll-pin-val').first().textContent()).includes('1108.93'));
+
+  // click-to-jump cycles occurrences
+  await page6.locator('.ll-pin').first().click();
+  await page6.waitForTimeout(100);
+  t('pins: first click jumps (1/3)', /1\/3/.test(await page6.locator('.ll-pin-count').first().textContent())
+    && await page6.locator('.ll-current-hit').count() === 1);
+  const hit1 = await page6.locator('.ll-current-hit').first().evaluate((n) => n.closest('.ll-row').textContent);
+  await page6.locator('.ll-pin').first().click();
+  await page6.waitForTimeout(100);
+  const hit2 = await page6.locator('.ll-current-hit').first().evaluate((n) => n.closest('.ll-row').textContent);
+  t('pins: second click moves to the next occurrence (2/3)',
+    /2\/3/.test(await page6.locator('.ll-pin-count').first().textContent()) && hit1 !== hit2);
+
+  // a pinned key absent from this log renders dimmed, never errors
+  await page6.evaluate(() => window.LogLens.setPins(['total', 'no_such_key_zz']));
+  await page6.waitForTimeout(100);
+  t('pins: absent key renders dimmed with —',
+    await page6.locator('.ll-pin.ll-pin-empty', { hasText: 'no_such_key_zz' }).count() === 1
+    && (await page6.locator('.ll-pin.ll-pin-empty .ll-pin-val').textContent()) === '—');
+
+  // unpin from the chip
+  await page6.locator('.ll-pin.ll-pin-empty .ll-pin-x').click();
+  await page6.waitForTimeout(100);
+  t('pins: unpin removes the chip', await page6.locator('.ll-pin').count() === 1);
+  await page6.locator('.ll-pin .ll-pin-x').click();
+  await page6.waitForTimeout(100);
+  t('pins: last unpin hides the strip', await page6.locator('.ll-pinstrip:visible').count() === 0);
+
+  // copy as table on the rooms array
+  const roomsRow = page6.locator('.ll-row', { has: page6.locator('.ll-key', { hasText: /^rooms$/ }) }).first();
+  await roomsRow.hover();
+  await roomsRow.locator('button', { hasText: /^copy table$/ }).click();
+  await page6.waitForTimeout(100);
+  const tsv = await page6.evaluate(() => window.__copiedText);
+  const lines = (tsv || '').split('\n');
+  t('table: header has flattened dot-columns',
+    lines[0] === 'id\tname\tprice.total\tprice.currency\ttags');
+  t('table: one row per item + header', lines.length === 4);
+  t('table: values land in cells', lines[1].includes('1108.93') && lines[3].includes('USD'));
+  t('table: deep/array cells use the preview', /\[ 2 items \]/.test(lines[1]));
+  t('table: no button on a scalar row',
+    await totalRow.locator('button', { hasText: /^copy table$/ }).count() === 0);
+
+  // row link: copy #ll= and restore it on a fresh page
+  const idRow = page6.locator('.ll-row', { has: page6.locator('.ll-key', { hasText: /^id$/ }) }).first();
+  await idRow.hover();
+  await idRow.locator('button', { hasText: '🔗' }).click();
+  await page6.waitForTimeout(100);
+  const link = await page6.evaluate(() => window.__copiedText);
+  t('link: copies a #ll= url', /#ll=/.test(link || '')
+    && decodeURIComponent(link.split('#ll=')[1]) === '$.rooms[0].id');
+
+  const page7 = await browser.newPage();
+  page7.setDefaultTimeout(4000);
+  await page7.setContent('<pre id="p"></pre>');
+  await page7.evaluate(() => {
+    document.getElementById('p').textContent = JSON.stringify({
+      rooms: [
+        { id: 1, price: { total: 1108.93 } },
+        { id: 2, price: { total: 989.1 } },
+        { id: 3, price: { total: 2000 } },
+      ],
+    });
+    location.hash = '#ll=' + encodeURIComponent('$.rooms[2].price.total');
+  });
+  await inject(page7);
+  await page7.waitForTimeout(300);
+  t('link: #ll= hash restores, renders and highlights the row',
+    await page7.locator('.ll-current-hit').count() === 1
+    && (await page7.locator('.ll-current-hit').first().evaluate((n) => n.closest('.ll-row').textContent)).includes('2000'));
+
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

@@ -92,6 +92,162 @@
     } else { legacyCopy(text); done(); }
   }
 
+  /* ---------------- pins (watch strip) ---------------- */
+  // Pinned key names live in chrome.storage.sync (shape ready for named sets;
+  // v1 uses one 'default' set). Outside an extension context (plain pages,
+  // node/vm tests) pins still work in-memory for the page's lifetime.
+
+  const pins = { keys: [], raw: null, listeners: [], inited: false };
+
+  function pinsStorage() {
+    try { return typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync ? chrome.storage.sync : null; }
+    catch (e) { return null; }
+  }
+
+  function notifyPins() {
+    for (const f of pins.listeners) { try { f(); } catch (e) { /* one bad strip must not break the rest */ } }
+  }
+
+  function pinsFromRaw(raw) {
+    if (!raw || !raw.sets) return [];
+    const set = raw.sets[raw.activeSet || 'default'];
+    return Array.isArray(set) ? set : [];
+  }
+
+  function initPins() {
+    if (pins.inited) return;
+    pins.inited = true;
+    const st = pinsStorage();
+    if (!st) return;
+    try {
+      st.get('pins').then((r) => {
+        if (r && r.pins) { pins.raw = r.pins; pins.keys = pinsFromRaw(r.pins); notifyPins(); }
+      }).catch(() => {});
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'sync' || !changes.pins) return;
+        pins.raw = changes.pins.newValue || null;
+        pins.keys = pinsFromRaw(pins.raw);
+        notifyPins();
+      });
+    } catch (e) { /* pins stay in-memory */ }
+  }
+
+  function setPinnedKeys(keys) {
+    pins.keys = keys;
+    notifyPins();
+    const st = pinsStorage();
+    if (!st) return;
+    const raw = pins.raw && pins.raw.sets ? pins.raw : { activeSet: 'default', sets: {} };
+    raw.sets[raw.activeSet || 'default'] = keys;
+    pins.raw = raw;
+    try { st.set({ pins: raw }); } catch (e) { /* in-memory only */ }
+  }
+
+  function togglePin(key) {
+    setPinnedKeys(pins.keys.includes(key) ? pins.keys.filter((k) => k !== key) : pins.keys.concat([key]));
+  }
+
+  /* ---------------- value tooltips ---------------- */
+
+  function relTime(d) {
+    const s = Math.round((Date.now() - d.getTime()) / 1000);
+    const abs = Math.abs(s), suf = s >= 0 ? ' ago' : ' from now';
+    if (abs < 60) return abs + 's' + suf;
+    if (abs < 3600) return Math.round(abs / 60) + 'm' + suf;
+    if (abs < 86400) return Math.round(abs / 3600) + 'h' + suf;
+    if (abs < 86400 * 60) return Math.round(abs / 86400) + 'd' + suf;
+    return Math.round(abs / (86400 * 30)) + 'mo' + suf;
+  }
+
+  function fmtDate(d) { return d.toLocaleString() + ' — ' + relTime(d); }
+
+  // 10/13-digit integers in a plausible date range (2001–2049) read as epochs
+  function epochTooltip(n) {
+    if (!Number.isInteger(n)) return null;
+    let ms = null;
+    if (n >= 1e9 && n < 2.5e9) ms = n * 1000;
+    else if (n >= 1e12 && n < 2.5e12) ms = n;
+    if (ms === null) return null;
+    return fmtDate(new Date(ms));
+  }
+
+  function valueTooltip(v) {
+    if (typeof v === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) {
+        const d = new Date(v);
+        if (!isNaN(d.getTime())) return fmtDate(d);
+      }
+      if (/^\d{10}$|^\d{13}$/.test(v)) return epochTooltip(Number(v));
+      return null;
+    }
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      const ep = epochTooltip(v);
+      if (ep) return ep;
+      if (Number.isInteger(v) && Math.abs(v) >= 10000) return v.toLocaleString();
+    }
+    return null;
+  }
+
+  /* ---------------- row links (#ll= hash) ---------------- */
+
+  // Inverse of pathToString: '$.rooms[0]["odd key"].id' -> ['rooms', 0, 'odd key', 'id']
+  function parsePath(str) {
+    if (typeof str !== 'string' || str[0] !== '$') return null;
+    const out = [];
+    let i = 1;
+    while (i < str.length) {
+      if (str[i] === '.') {
+        const m = /^[A-Za-z_$][A-Za-z0-9_$-]*/.exec(str.slice(i + 1));
+        if (!m) return null;
+        out.push(m[0]);
+        i += 1 + m[0].length;
+      } else if (str[i] === '[') {
+        if (str[i + 1] === '"') {
+          let j = i + 2, key = '';
+          while (j < str.length && str[j] !== '"') {
+            if (str[j] === '\\' && str[j + 1] === '"') { key += '"'; j += 2; continue; }
+            key += str[j]; j++;
+          }
+          if (str[j] !== '"' || str[j + 1] !== ']') return null;
+          out.push(key);
+          i = j + 2;
+        } else {
+          const m = /^\d+/.exec(str.slice(i + 1));
+          if (!m || str[i + 1 + m[0].length] !== ']') return null;
+          out.push(Number(m[0]));
+          i += 2 + m[0].length;
+        }
+      } else return null;
+    }
+    return out;
+  }
+
+  /* ---------------- copy as table ---------------- */
+
+  // One item -> flat {column: cell}: scalars as-is, nested scalars as dot
+  // columns (depth 2), anything deeper/array -> its summarize() preview.
+  function flattenItem(item) {
+    const out = {};
+    for (const [k, v] of Object.entries(item)) {
+      if (!isObj(v)) { out[k] = v; continue; }
+      if (Array.isArray(v)) { out[k] = summarize(v); continue; }
+      const entries = Object.entries(v);
+      if (!entries.length) { out[k] = summarize(v); continue; }
+      for (const [k2, v2] of entries) out[k + '.' + k2] = isObj(v2) ? summarize(v2) : v2;
+    }
+    return out;
+  }
+
+  function arrayToTsv(items) {
+    const flats = items.map(flattenItem);
+    const cols = [];
+    for (const f of flats) for (const k of Object.keys(f)) { if (!cols.includes(k)) cols.push(k); }
+    const cell = (v) => (v === undefined ? '' : String(v).replace(/[\t\n\r]+/g, ' '));
+    const lines = [cols.join('\t')];
+    for (const f of flats) lines.push(cols.map((c) => cell(f[c])).join('\t'));
+    return lines.join('\n');
+  }
+
   /* ---------------- tree ---------------- */
 
   class Tree {
@@ -169,6 +325,33 @@
         copyText(pathToString(path), bPath);
       });
       tools.appendChild(bPath);
+      // an array of similar objects can leave as a paste-ready TSV table
+      if (Array.isArray(eff) && eff.length >= 2 && eff.every((x) => isObj(x) && !Array.isArray(x))) {
+        const bTable = el('button', 'll-btn', 'copy table');
+        bTable.title = 'Copy these ' + eff.length + ' items as a TSV table (paste into Jira/Sheets)';
+        bTable.addEventListener('click', (e) => {
+          e.stopPropagation();
+          copyText(arrayToTsv(eff), bTable);
+        });
+        tools.appendChild(bTable);
+      }
+      const bPin = el('button', 'll-btn', 'pin');
+      bPin.title = 'Pin/unpin this key in the watch strip at the top';
+      bPin.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePin(String(key));
+        const old = bPin.textContent;
+        bPin.textContent = '✓';
+        setTimeout(() => { bPin.textContent = old; }, 700);
+      });
+      tools.appendChild(bPin);
+      const bLink = el('button', 'll-btn', '🔗');
+      bLink.title = 'Copy a link that opens this page and jumps to this row';
+      bLink.addEventListener('click', (e) => {
+        e.stopPropagation();
+        copyText(location.href.split('#')[0] + '#ll=' + encodeURIComponent(pathToString(path)), bLink);
+      });
+      tools.appendChild(bLink);
       row.appendChild(tools);
 
       return node;
@@ -177,6 +360,8 @@
     renderScalar(v) {
       const t = typeOf(v);
       const span = el('span', 'll-val ll-' + t);
+      const tip = valueTooltip(v);
+      if (tip) span.title = tip;
       if (t === 'string') {
         if (v.length > TRUNC) {
           span.textContent = JSON.stringify(v.slice(0, TRUNC)).slice(0, -1) + '…" (' + v.length + ' chars — click to expand)';
@@ -301,6 +486,43 @@
 
     collapseAll() {
       this.collapseWithin(this.root);
+    }
+
+    /* ----- pinned-key lookup (walks the DATA, like search) ----- */
+
+    findKey(key) {
+      const matches = [];
+      const walk = (k, value, path) => {
+        if (matches.length >= MAX_MATCHES) return;
+        if (String(k) === key) matches.push({ path });
+        const parsed = tryParseJsonString(value);
+        const eff = parsed || value;
+        if (isObj(eff)) {
+          const entries = Array.isArray(eff) ? eff.map((x, i) => [i, x]) : Object.entries(eff);
+          for (const [k2, v2] of entries) {
+            if (matches.length >= MAX_MATCHES) return;
+            walk(k2, v2, path.concat([k2]));
+          }
+        }
+      };
+      const rootParsed = tryParseJsonString(this.value);
+      const eff = rootParsed || this.value;
+      if (isObj(eff)) {
+        const entries = Array.isArray(eff) ? eff.map((x, i) => [i, x]) : Object.entries(eff);
+        for (const [k, v] of entries) walk(k, v, [k]);
+      }
+      return matches;
+    }
+
+    valueAt(path) {
+      let v = this.value;
+      for (const k of path) {
+        const parsed = tryParseJsonString(v);
+        v = parsed || v;
+        if (!isObj(v)) return undefined;
+        v = v[k];
+      }
+      return v;
     }
 
     /* ----- search ----- */
@@ -525,11 +747,93 @@
     }
     items.forEach((x) => bar.appendChild(x));
 
+    /* pin strip — the pinned keys' values, always visible above the tree */
+    initPins();
+    const strip = el('div', 'll-pinstrip');
+    strip.hidden = true;
+
+    function jumpTo(tree, path) {
+      const node = tree.ensureRendered(path);
+      rootEl.querySelectorAll('.ll-current-hit').forEach((x) => x.classList.remove('ll-current-hit'));
+      const target = node.querySelector(':scope > .ll-row > .ll-key');
+      if (target) {
+        target.classList.add('ll-hit', 'll-current-hit');
+        target.scrollIntoView({ block: 'center' });
+      }
+    }
+
+    function pinPreview(v) {
+      if (v === undefined) return '';
+      if (isObj(v)) return summarize(v);
+      if (typeof v === 'string') return JSON.stringify(v.length > 40 ? v.slice(0, 40) + '…' : v);
+      return String(v);
+    }
+
+    const chipIdx = {}; // key -> last-visited occurrence
+    function renderStrip() {
+      const keys = pins.keys;
+      strip.textContent = '';
+      strip.hidden = !keys.length || !rawPre.hidden; // hidden while raw view is up
+      for (const key of keys) {
+        const occ = [];
+        for (const t of trees) for (const m of t.findKey(key)) occ.push({ tree: t, path: m.path });
+        const chip = el('span', 'll-pin' + (occ.length ? '' : ' ll-pin-empty'));
+        chip.appendChild(el('span', 'll-pin-key', key));
+        if (!occ.length) {
+          chip.appendChild(el('span', 'll-pin-val', '—'));
+          chip.title = '"' + key + '" does not occur in this log';
+        } else {
+          const capped = occ.length >= MAX_MATCHES ? '+' : '';
+          const cnt = el('span', 'll-pin-count', occ.length + capped + '✕');
+          chip.appendChild(cnt);
+          chip.appendChild(el('span', 'll-pin-val', pinPreview(occ[0].tree.valueAt(occ[0].path))));
+          chip.title = 'Click to jump between the ' + occ.length + capped + ' occurrences of "' + key + '"';
+          chip.addEventListener('click', (e) => {
+            if (e.target.classList && e.target.classList.contains('ll-pin-x')) return;
+            chipIdx[key] = ((chipIdx[key] === undefined ? -1 : chipIdx[key]) + 1) % occ.length;
+            cnt.textContent = (chipIdx[key] + 1) + '/' + occ.length + capped;
+            jumpTo(occ[chipIdx[key]].tree, occ[chipIdx[key]].path);
+          });
+        }
+        const x = el('button', 'll-pin-x', '✕');
+        x.title = 'Unpin "' + key + '"';
+        x.addEventListener('click', (e) => { e.stopPropagation(); togglePin(key); });
+        chip.appendChild(x);
+        strip.appendChild(chip);
+      }
+    }
+    pins.listeners.push(renderStrip);
+    renderStrip();
+
     body.appendChild(treePane);
-    rootEl.appendChild(bar);
+    // bar + strip stick together as one header while the tree scrolls
+    const head = el('div', 'll-head');
+    head.appendChild(bar);
+    head.appendChild(strip);
+    rootEl.appendChild(head);
     rootEl.appendChild(body);
     rootEl.appendChild(rawPre);
     container.appendChild(rootEl);
+
+    /* a #ll=<path> hash (from the 🔗 row action) jumps straight to that row */
+    if (!window.__llHashDone) {
+      const hm = /^#ll=(.+)$/.exec(location.hash || '');
+      if (hm) {
+        let pstr = null;
+        try { pstr = decodeURIComponent(hm[1]); } catch (e) { /* malformed — ignore */ }
+        const hpath = pstr && parsePath(pstr);
+        if (hpath) {
+          for (const t of trees) {
+            const node = t.ensureRendered(hpath);
+            if (node && node.__ll && pathToString(node.__ll.path) === pstr) {
+              window.__llHashDone = true;
+              jumpTo(t, hpath);
+              break;
+            }
+          }
+        }
+      }
+    }
 
     /* smart copy — a selection spanning several rows copies real JSON of the
        smallest object/array containing it, taken from the parsed data, so
@@ -675,6 +979,7 @@
       const showRaw = rawPre.hidden;
       rawPre.hidden = !showRaw;
       body.hidden = showRaw;
+      strip.hidden = showRaw || !pins.keys.length;
       bRaw.classList.toggle('ll-active', showRaw);
     });
 
@@ -717,5 +1022,5 @@
     st.textContent = css;
   }
 
-  window.LogLens = { mount, extractSegments, Tree, applyTheme };
+  window.LogLens = { mount, extractSegments, Tree, applyTheme, setPins: setPinnedKeys };
 })();

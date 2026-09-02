@@ -77,6 +77,21 @@ const PROFILE = require('os').tmpdir() + '/log-lens-smoke-profile';
     await sa.locator('.ll-search').fill('beta');
     await sa.waitForTimeout(400);
     t('paste viewer search', /1\s*\/\s*1/.test(await sa.locator('.ll-count').textContent()));
+
+    // pins persist through real chrome.storage.sync in an extension page
+    const totalRow = sa.locator('.ll-row', { has: sa.locator('.ll-key', { hasText: /^alpha$/ }) }).first();
+    await totalRow.hover();
+    await totalRow.locator('button', { hasText: /^pin$/ }).click();
+    await sa.waitForTimeout(300);
+    t('pins: strip renders in extension context', await sa.locator('.ll-pin-key', { hasText: 'alpha' }).count() === 1);
+    const stored = await sa.evaluate(() => chrome.storage.sync.get('pins'));
+    t('pins: stored in chrome.storage.sync',
+      !!stored.pins && Array.isArray(stored.pins.sets.default) && stored.pins.sets.default.includes('alpha'));
+    // unpin so the next fresh-profile run starts clean anyway
+    await sa.locator('.ll-pin .ll-pin-x').click();
+    await sa.waitForTimeout(200);
+    const cleared = await sa.evaluate(() => chrome.storage.sync.get('pins'));
+    t('pins: unpin clears storage', !!cleared.pins && !cleared.pins.sets.default.includes('alpha'));
   }
 
   await ctx.close();

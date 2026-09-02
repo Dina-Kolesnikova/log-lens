@@ -58,17 +58,26 @@ Two detection modes, applied automatically:
 - **Search** matches keys and values, *including inside collapsed nodes and
   inside parsed JSON-strings*. Enter/Shift+Enter or ◀ ▶ jump between matches;
   "matches only" hides everything else.
+- **Pinned fields (watch strip)**: hover any row → `pin` to keep that key in a
+  strip above the tree. Each chip shows the key, how many times it occurs and
+  the first value; clicking it cycles through the occurrences. Keys absent
+  from the current page show dimmed as `—`. Pins sync with your Chrome
+  profile, so your usual fields greet you on every log page.
 - **Depth buttons** `1 2 3 all −` to expand/collapse in one click. While
   **matches only** is on they act *inside the matches* — `all` expands every
   matched subtree, `1 2 3` go N levels deep under each match — so the expand
   budget is never spent on the part of the document the filter is hiding.
-- **Hover any row** → `copy` (value, or subtree as pretty JSON), `path`
-  (e.g. `$.request.headers.authorization[0]`), and `copy parsed` on
-  str→json nodes.
-- **Row actions**: hover any row for `copy JSON` (the whole object/array,
-  pretty-printed), `copy` (a single value) and `path`
-  (e.g. `$.request.headers.authorization[0]`), shown right beside the row's
-  own text.
+- **Hover any row** → actions right beside the row's own text: `copy`
+  (`copy JSON` on objects/arrays, pretty-printed), `path`
+  (e.g. `$.request.headers.authorization[0]`), `copy parsed` on str→json
+  nodes, `pin`, and `🔗`.
+- **Copy as table**: on an array of similar objects, `copy table` puts a
+  TSV on the clipboard — flattened dot-columns (`price.total`), one row per
+  item — that pastes straight into a spreadsheet or issue tracker.
+- **Row links**: `🔗` copies the page URL with a `#ll=<path>` fragment; opening
+  it renders, highlights and scrolls to that exact row.
+- **Value tooltips**: hover an ISO or epoch timestamp for local + relative
+  time ("Aug 27, 10:47 — 6 days ago"); big integers show thousands-separated.
 - **Smart copy**: drag-select across rows and press Cmd/Ctrl+C — you get real
   JSON of the smallest object/array covering the selection, **including parts
   that are still collapsed**. Selecting inside a single row copies plain text
