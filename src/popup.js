@@ -2,7 +2,12 @@ document.getElementById('enhance').addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   try {
     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['src/jsontree.css'] });
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['src/jsontree.js', 'src/content.js'] });
+    // an explicit click means "run here" whatever the auto-run patterns say
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => { window.__logLensManual = true; },
+    });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['src/patterns.js', 'src/jsontree.js', 'src/content.js'] });
   } catch (e) {
     // chrome:// pages etc. can't be injected — nothing to do
   }

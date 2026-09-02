@@ -13,11 +13,36 @@ collects nothing.
 ## How it runs
 
 - **Auto-run sites** — add your own log-viewer URLs in the extension options
-  (toolbar icon → "Auto-run sites…"). Log Lens registers itself only on the
-  patterns you add, and only after Chrome asks you to grant that site.
+  (toolbar icon → "Auto-run sites…"). Log Lens runs itself only on the
+  patterns you add, and only after Chrome asks you to grant access.
+- **Everywhere** — tick **Auto-run on every site** in options for one
+  all-sites grant and no patterns to maintain. JSON detection still decides
+  whether a page gets a viewer, so ordinary pages are untouched.
 - **Any other page** — click the toolbar icon → **Enhance this page**.
 - **Paste viewer** — toolbar icon → "Open paste viewer" for log text copied
   from anywhere; it accepts pure JSON or mixed preamble + JSON dumps.
+
+### Auto-run patterns
+
+A pattern is `scheme://host/path`, and `*` is a wildcard **anywhere** in it:
+
+```
+https://logs.example.com/*                  one host
+*://*.example.com/*                         a domain and its subdomains
+https://*-staging.example.com/log-viewer/*   wildcard inside the host
+*://*/*                                     every site
+file:///Users/me/logs/*                      local files
+```
+
+End the path with `*` to cover everything under it; a wildcard-less path
+matches that one URL exactly (options warns you about this).
+
+Chrome's own match-pattern grammar cannot express a wildcard *inside* a host,
+and permissions are granted per domain. So a pattern is used two ways: Log Lens
+asks Chrome for the narrowest **legal superset** of it — `*-staging.example.com`
+becomes `*.example.com` — and then filters locally down to the pattern you
+actually typed. The line under the input always shows the origin Chrome will be
+asked for, before it asks. Widening the grant never widens where Log Lens runs.
 
 Two detection modes, applied automatically:
 
@@ -76,9 +101,12 @@ From the Chrome Web Store (when published), or unpacked:
 ## Privacy
 
 - No analytics, no remote requests, no data collection of any kind.
-- Host access is **optional and user-granted per site**; the only default
-  permissions are `activeTab`/`scripting` (used when you click the toolbar
-  button), `storage` (your site list), and `clipboardWrite` (copy buttons).
+- Host access is **optional and user-granted**; the only default permissions
+  are `activeTab`/`scripting` (used when you click the toolbar button),
+  `storage` (your site list), and `clipboardWrite` (copy buttons).
+- A granted domain is not a place Log Lens runs: the content script re-checks
+  every URL against your patterns and does nothing on the ones that don't
+  match.
 
 ## Development
 
@@ -88,8 +116,9 @@ Plain vanilla JS, zero dependencies, no build step.
 src/jsontree.js    tree renderer + search + text→segments parser (window.LogLens)
 src/jsontree.css   all styles
 src/content.js     page detection: full-page raw mode + inline mode + SPA MutationObserver
+src/patterns.js    auto-run URL patterns: parse, Chrome-legal grant origin, URL match
 src/background.js  registers content scripts for the user's auto-run sites
-src/options.*      auto-run site list (match patterns + permission requests)
+src/options.*      auto-run site list (patterns + permission requests) + appearance
 src/popup.*        toolbar popup (inject / paste viewer / options)
 src/standalone.*   paste viewer page
 tests/             node parser tests + Playwright e2e
@@ -99,8 +128,11 @@ Run tests:
 
 ```bash
 node tests/test_segments.js   # pure parser tests, no browser
+node tests/test_patterns.js   # URL pattern engine, no browser
 node tests/e2e.js             # drives installed Chrome via playwright-core
                               # (set PLAYWRIGHT_CORE to your playwright-core path if needed)
+node tests/ext_smoke.js       # loads the unpacked extension (service worker,
+                              # options, popup, paste viewer)
 ```
 
 ## Known limits

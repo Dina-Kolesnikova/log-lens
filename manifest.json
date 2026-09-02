@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Log Lens — JSON Log Viewer",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Turn raw JSON on log pages into an interactive tree: collapse, search keys & values, copy value/path/subtree, parse JSON strings.",
   "permissions": [
     "activeTab",

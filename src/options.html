@@ -17,6 +17,16 @@
   .hint { font-size: 12px; color: #8a7a5e; background: #f1e7d1; border-radius: 10px; padding: 10px 14px; margin-top: 18px; }
   .hint code { background: #fdfaf2; padding: 0 4px; border-radius: 4px; }
   #err { color: #b3452c; font-size: 13px; min-height: 18px; margin: 4px 0 0; }
+  #grantinfo { font-size: 12px; color: #8a7a5e; margin: 4px 0 0; min-height: 16px; }
+  #grantinfo.warn { color: #b3452c; }
+  li .col { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  li .pat { overflow-wrap: anywhere; }
+  li .grant { font-size: 11px; color: #8a7a5e; font-family: -apple-system, "Segoe UI", sans-serif; }
+  li .grant.warn { color: #b3452c; }
+  li .btns { display: flex; gap: 6px; flex: none; }
+  li.needsgrant { border-color: #dcbcab; background: #fdf3ee; }
+  .everyrow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4a3d2c; margin: 12px 0 0; }
+  .everyrow input { width: 15px; height: 15px; accent-color: #c96f2e; }
   h2 { font-family: "Iowan Old Style", Georgia, serif; font-size: 17px; font-weight: 800; margin: 26px 0 4px; color: #3a2f21; border-top: 1px solid #e4d7ba; padding-top: 18px; }
   .swatches { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 12px 0; }
   .swatches label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #4a3d2c; }
@@ -31,16 +41,26 @@
 <main>
   <h1>⌕ Log Lens</h1>
   <p class="sub">Auto-run sites — Log Lens will automatically enhance JSON on pages matching these URL patterns. On any other page, use the toolbar button.</p>
+  <label class="everyrow">
+    <input type="checkbox" id="everysite">
+    Auto-run on every site — no patterns needed
+  </label>
   <div class="addrow">
     <input type="text" id="pattern" placeholder="https://logs.example.com/*" spellcheck="false">
     <button id="add">Add site</button>
   </div>
+  <p id="grantinfo"></p>
   <p id="err"></p>
   <ul id="list"></ul>
   <div class="hint">
-    Patterns use Chrome match-pattern syntax: <code>https://host/path*</code>, wildcards allowed as
-    <code>*://*.example.com/*</code>. Adding a site asks Chrome for permission to run on it —
-    Log Lens processes everything locally and sends nothing anywhere.
+    A pattern is <code>scheme://host/path</code> and <code>*</code> is a wildcard anywhere in it:
+    <code>https://logs.example.com/*</code>, <code>*://*.example.com/*</code>,
+    <code>https://*-staging.example.com/logs/*</code>. End the path with <code>*</code> to cover
+    everything under it.<br>
+    Chrome can only grant permission per domain, so a pattern with a wildcard inside the host is
+    granted one level wider — the line under the input always shows what Chrome will be asked for.
+    Log Lens then auto-runs only on URLs matching the pattern you typed. Everything is processed
+    locally and nothing is sent anywhere.
   </div>
 
   <h2>Appearance</h2>
@@ -78,6 +98,7 @@
     </div></div>
   </div>
 </main>
+<script src="patterns.js"></script>
 <script src="jsontree.js"></script>
 <script src="options.js"></script>
 </body>

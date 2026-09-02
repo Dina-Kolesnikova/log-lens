@@ -13,6 +13,9 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   async function inject(p) {
     await p.addStyleTag({ path: SRC + '/jsontree.css' });
     await p.addScriptTag({ path: SRC + '/jsontree.js' });
+    // no extension context here: this exercises the manual toolbar path, which
+    // bypasses the auto-run gate in content.js
+    await p.evaluate(() => { window.__logLensManual = true; });
     await p.addScriptTag({ path: SRC + '/content.js' });
   }
 

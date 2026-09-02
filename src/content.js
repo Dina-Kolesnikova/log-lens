@@ -8,10 +8,17 @@
  * A toolbar "off" button / floating pill switches between Log Lens and the
  * original view; OFF is remembered for the current tab only (sessionStorage),
  * so every new tab or session starts enhanced.
+ *
+ * When auto-registered, this script runs on the Chrome-legal SUPERSET of the
+ * user's auto-run patterns (see background.js), so it re-checks location.href
+ * against the patterns as typed before touching the page. Manual injection
+ * from the toolbar button sets window.__logLensManual and skips that gate.
  */
 (function () {
   'use strict';
   if (window.__logLensLoaded) {
+    // already injected here — a second injection is the toolbar button asking
+    // for the viewer, even if the auto-run gate had closed the first time
     if (window.__logLensRescan) window.__logLensRescan();
     return;
   }
@@ -291,14 +298,44 @@
     else updateBadge(); // page stays original, pill offers turning it on
   }
 
+  /* ---------- auto-run gate ---------- */
+
+  // Registration happens on a widened origin, so the real filter lives here.
+  // Fails CLOSED: on a domain-wide grant, a failed read must not enhance pages
+  // the user never asked for — the toolbar button is always the way in.
+  async function autoRunAllowed() {
+    if (window.__logLensManual) return true;
+    const P = window.LLPatterns;
+    if (!P) return false;
+    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) return false;
+    try {
+      const { sites = [] } = await chrome.storage.sync.get('sites');
+      return sites.some((pat) => P.matchesUrl(pat, location.href));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  let inited = false;
+  function boot() {
+    if (inited) { activate(); return; }
+    inited = true;
+    init();
+  }
+
   window.__logLensRescan = () => {
+    window.__logLensManual = true; // an explicit click outranks the gate
+    if (!inited) { boot(); return; }
     if (!enabled) setEnabled(true, true); // manual toolbar click means "turn it on"
     else { activate(); }
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  (async () => {
+    if (!(await autoRunAllowed())) return; // not an auto-run URL — leave the page alone
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot, { once: true });
+    } else {
+      boot();
+    }
+  })();
 })();

@@ -1,22 +1,31 @@
 /* Log Lens — service worker.
  * Keeps dynamically registered content scripts in sync with the user's
  * auto-run site list (chrome.storage.sync "sites"). No hardcoded domains.
+ *
+ * A stored pattern is not necessarily a Chrome match pattern (mid-host
+ * wildcards are allowed), so registration happens on the Chrome-legal
+ * SUPERSET origin from LLPatterns.toGrantOrigin(); content.js then narrows it
+ * back down to the pattern the user actually typed.
  */
+importScripts('/src/patterns.js');
+
 async function syncRegistrations() {
   const { sites = [] } = await chrome.storage.sync.get('sites');
   try { await chrome.scripting.unregisterContentScripts({ ids: ['log-lens-auto'] }); } catch (e) { /* not registered yet */ }
   if (!sites.length) return;
   const granted = [];
   for (const pattern of sites) {
+    const origin = LLPatterns.toGrantOrigin(pattern);
+    if (!origin || granted.indexOf(origin) >= 0) continue; // unparseable, or already covered
     try {
-      if (await chrome.permissions.contains({ origins: [pattern] })) granted.push(pattern);
-    } catch (e) { /* invalid pattern — skip */ }
+      if (await chrome.permissions.contains({ origins: [origin] })) granted.push(origin);
+    } catch (e) { /* Chrome rejected the origin — skip */ }
   }
   if (!granted.length) return;
   await chrome.scripting.registerContentScripts([{
     id: 'log-lens-auto',
     matches: granted,
-    js: ['src/jsontree.js', 'src/content.js'],
+    js: ['src/patterns.js', 'src/jsontree.js', 'src/content.js'],
     css: ['src/jsontree.css'],
     runAt: 'document_idle',
   }]);
@@ -35,3 +44,7 @@ chrome.runtime.onStartup.addListener(syncRegistrations);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.sites) syncRegistrations();
 });
+// a permission granted or revoked in chrome://extensions changes what we may
+// register, and storage never fires for it
+chrome.permissions.onAdded.addListener(syncRegistrations);
+chrome.permissions.onRemoved.addListener(syncRegistrations);
