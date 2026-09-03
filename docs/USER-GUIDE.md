@@ -24,7 +24,7 @@ update landed, just reopen the tab.
 
 ---
 
-## 2. Three ways to run it
+## 2. Four ways to run it
 
 ### a) Automatically, on your log sites (recommended)
 Toolbar icon → **Auto-run sites…** (the options page). Add URL patterns for
