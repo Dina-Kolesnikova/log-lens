@@ -24,6 +24,10 @@ feature, task by task, with troubleshooting.
 - **Any other page** — click the toolbar icon → **Enhance this page**.
 - **Paste viewer** — toolbar icon → "Open paste viewer" for log text copied
   from anywhere; it accepts pure JSON or mixed preamble + JSON dumps.
+- **DevTools panel** — F12 → the "⌕ Log Lens" tab: pick any Fetch/XHR request
+  and read its response body and request payload as the same tree (Chrome
+  doesn't let extensions change the built-in Response tab, so Log Lens brings
+  its own).
 
 ### Auto-run patterns
 
@@ -137,6 +141,8 @@ src/background.js  registers content scripts for the user's auto-run sites
 src/options.*      auto-run site list (patterns + permission requests) + appearance
 src/popup.*        toolbar popup (inject / paste viewer / options)
 src/standalone.*   paste viewer page
+src/devtools.*     devtools bootstrap (registers the panel)
+src/devtools-panel.*  the DevTools panel: request list + viewer
 tests/             node parser tests + Playwright e2e
 ```
 

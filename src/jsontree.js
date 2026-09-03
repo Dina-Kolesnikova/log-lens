@@ -1001,7 +1001,17 @@
       bRaw.classList.toggle('ll-active', showRaw);
     });
 
-    return { root: rootEl, trees };
+    return {
+      root: rootEl,
+      trees,
+      // for callers that re-mount into the same page repeatedly (the DevTools
+      // panel): detach this viewer's pin-strip listener so it can be GC'd
+      dispose() {
+        const i = pins.listeners.indexOf(renderStrip);
+        if (i >= 0) pins.listeners.splice(i, 1);
+        rootEl.remove();
+      },
+    };
   }
 
   /* ---------------- theme ---------------- */

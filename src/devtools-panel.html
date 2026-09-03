@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>⌕ Log Lens — network</title>
+<link rel="stylesheet" href="jsontree.css">
+<style>
+  html, body { height: 100%; }
+  body {
+    margin: 0; display: flex; flex-direction: column;
+    font: 12.5px/1.5 -apple-system, "Segoe UI", sans-serif;
+    background: #f1e8d5; color: #3a2f21;
+  }
+  header {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: none;
+    padding: 7px 12px; background: #eee3cb; border-bottom: 1px solid #e4d7ba;
+  }
+  header b { font-family: "Iowan Old Style", Georgia, serif; font-size: 14px; }
+  #filter {
+    flex: 1 1 120px; min-width: 90px; padding: 4px 12px; border: 1px solid #d8c9ab;
+    border-radius: 999px; background: #fdfaf2; font: 12px ui-monospace, Menlo, monospace;
+  }
+  header label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: #4a3d2c; }
+  header button {
+    padding: 3px 12px; font: inherit; border: 1px solid #d8c9ab; border-radius: 999px;
+    background: #fdfaf2; cursor: pointer; color: #3a2f21;
+  }
+  #count { color: #8a7a5e; font-size: 11.5px; white-space: nowrap; }
+  #wrap { flex: 1; display: flex; min-height: 0; }
+  #list {
+    flex: none; width: 300px; overflow: auto; border-right: 1px solid #e4d7ba;
+    background: #faf4e6; font: 11.5px/1.4 ui-monospace, Menlo, monospace;
+  }
+  .req { padding: 6px 10px; border-bottom: 1px solid #efe5cd; cursor: pointer; }
+  .req:hover { background: #f3e9d2; }
+  .req.sel { background: #f7dcc6; }
+  .req .name { overflow-wrap: anywhere; }
+  .req .meta { color: #8a7a5e; font-size: 10.5px; }
+  .req .meta .err { color: #b3452c; }
+  #right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #tabs { flex: none; display: flex; gap: 6px; padding: 6px 12px; border-bottom: 1px solid #e4d7ba; background: #f6eeda; }
+  #tabs button {
+    padding: 3px 14px; font: inherit; border: 1px solid #d8c9ab; border-radius: 999px;
+    background: #fdfaf2; cursor: pointer; color: #3a2f21;
+  }
+  #tabs button.on { border-color: #c96f2e; color: #c96f2e; }
+  #view { flex: 1; overflow: auto; padding: 8px 12px; }
+  #view .ll-root { border-radius: 12px; }
+  .msg { color: #8a7a5e; padding: 24px; text-align: center; }
+  pre.rawbody { font: 11.5px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<header>
+  <b>⌕ Log Lens</b>
+  <input id="filter" placeholder="filter by URL…" spellcheck="false">
+  <label><input type="checkbox" id="jsononly" checked> JSON only</label>
+  <label><input type="checkbox" id="preserve"> preserve log</label>
+  <button id="clear">clear</button>
+  <span id="count"></span>
+</header>
+<div id="wrap">
+  <div id="list"></div>
+  <div id="right">
+    <div id="tabs">
+      <button id="tab-resp" class="on">Response</button>
+      <button id="tab-payload">Payload</button>
+    </div>
+    <div id="view"><div class="msg">Requests will appear on the left as the inspected page makes them.<br>Click one to see its response as a tree.</div></div>
+  </div>
+</div>
+<script src="jsontree.js"></script>
+<script src="devtools-panel.js"></script>
+</body>
+</html>

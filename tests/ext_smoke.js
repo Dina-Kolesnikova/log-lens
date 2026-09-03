@@ -94,6 +94,70 @@ const PROFILE = require('os').tmpdir() + '/log-lens-smoke-profile';
     t('pins: unpin clears storage', !!cleared.pins && !cleared.pins.sets.default.includes('alpha'));
   }
 
+    // ---- devtools panel (driven via the test hook; chrome.devtools is absent here) ----
+    const dp = await ctx.newPage();
+    await dp.goto('chrome-extension://' + extId + '/src/devtools-panel.html');
+    t('panel: hint shown outside DevTools', (await dp.locator('.msg').textContent()).includes('F12'));
+    await dp.evaluate(() => {
+      const mk = (url, method, status, mime, rtype, body, postData) => ({
+        _resourceType: rtype,
+        request: { url, method, postData: postData ? { text: postData } : undefined, queryString: [] },
+        response: { status, content: { mimeType: mime } },
+        getContent: (cb) => cb(body, ''),
+      });
+      window.__llPanel.feed([
+        mk('https://api.example.com/v2/look?x=1', 'POST', 200, 'application/json', 'fetch',
+           '{"results":{"accommodation":{"name":"Example Inn","total":1488.23}}}',
+           '{"criteria":{"adults":2,"rooms":1}}'),
+        mk('https://cdn.example.com/sprite.svg', 'GET', 200, 'image/svg+xml', 'other',
+           '<svg></svg>'),
+      ]);
+    });
+    await dp.waitForTimeout(100);
+    t('panel: JSON-only filter keeps 1 of 2', await dp.locator('.req').count() === 1);
+    await dp.locator('#jsononly').uncheck();
+    await dp.waitForTimeout(100);
+    t('panel: filter off shows both', await dp.locator('.req').count() === 2);
+    await dp.locator('#jsononly').check();
+
+    await dp.locator('.req').first().click();
+    await dp.waitForTimeout(200);
+    t('panel: response renders as a tree',
+      await dp.locator('#view .ll-key', { hasText: /^accommodation$/ }).count() === 1);
+    await dp.locator('#view .ll-group button', { hasText: /^all$/ }).click();
+    await dp.waitForTimeout(200);
+    t('panel: values in the tree', await dp.locator('#view .ll-val', { hasText: '1488.23' }).count() === 1);
+
+    await dp.locator('#tab-payload').click();
+    await dp.waitForTimeout(200);
+    t('panel: payload tab renders postData as a tree',
+      await dp.locator('#view .ll-key', { hasText: /^criteria$/ }).count() === 1);
+
+    // re-selecting must not stack viewers (mount dispose)
+    await dp.locator('#tab-resp').click();
+    await dp.waitForTimeout(200);
+    await dp.locator('.req').first().click();
+    await dp.waitForTimeout(200);
+    t('panel: re-select keeps exactly one viewer', await dp.locator('#view .ll-root').count() === 1);
+    await dp.locator('#view .ll-group button', { hasText: /^all$/ }).click();
+    await dp.waitForTimeout(200);
+
+    // pins work inside the panel too (storage is available on extension pages)
+    const totRow = dp.locator('.ll-row', { has: dp.locator('.ll-key', { hasText: /^total$/ }) }).first();
+    await totRow.hover();
+    await totRow.locator('button', { hasText: /^pin$/ }).click();
+    await dp.waitForTimeout(200);
+    t('panel: pin strip renders over a network response',
+      await dp.locator('.ll-pin-key', { hasText: 'total' }).count() === 1);
+    await dp.locator('.ll-pin .ll-pin-x').click();
+
+    // URL filter narrows the list
+    await dp.locator('#jsononly').uncheck();
+    await dp.locator('#filter').fill('sprite');
+    await dp.waitForTimeout(100);
+    t('panel: URL filter narrows the list', await dp.locator('.req').count() === 1
+      && (await dp.locator('.req .name').textContent()).includes('sprite'));
+
   await ctx.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

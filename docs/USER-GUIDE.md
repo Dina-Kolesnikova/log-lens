@@ -62,6 +62,17 @@ Toolbar icon → **Open paste viewer** → paste any log text → **Render**.
 Accepts pure JSON or mixed text (log preamble + JSON blocks). Use it for logs
 copied from terminals, tickets, chat messages.
 
+### d) Inside DevTools — network request/response bodies
+Open DevTools (F12) on any page → the **⌕ Log Lens** tab (next to Network).
+Requests appear on the left as the page makes them ("JSON only" is on by
+default; there's a URL filter and a *preserve log* checkbox, like Network
+has). Click a request → its **Response** renders as the full Log Lens tree —
+search, matches-only, pins, copy table, everything — and the **Payload** tab
+shows the request body (or its query parameters). Chrome doesn't allow
+extensions to change the built-in Response tab itself; this panel is the
+supported way to get the same data with better tools. Note: requests made
+*before* DevTools was opened aren't visible — reload the page to capture them.
+
 ### Turning it off
 Every viewer's toolbar has an **off** button that restores the original page.
 While off, a small draggable **"⌕ Log Lens OFF"** pill floats on the page —

@@ -13,6 +13,7 @@ WHAT IT DOES
 • Row links — copy a link that opens the page at that exact row, highlighted and scrolled into view.
 • Tooltips — hover a timestamp for your local time and "6 days ago"; big numbers get thousands separators.
 • Paste viewer — paste log text copied from a terminal, ticket, or chat and browse it the same way.
+• DevTools panel — press F12 and open the "⌕ Log Lens" tab: pick any Fetch/XHR request and read its response body and request payload as the same interactive tree.
 • Your look — configurable colors and font size, applied live everywhere.
 
 QUICK START
