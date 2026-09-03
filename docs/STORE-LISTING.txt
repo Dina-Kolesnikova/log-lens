@@ -1,0 +1,29 @@
+Log Lens turns walls of raw JSON — log pages, API responses, debug dumps — into an interactive tree you can search, filter, copy from, and share links into.
+
+Everything runs locally inside your browser. No data ever leaves the page: no network requests, no analytics, no collection of any kind. Logs often contain tokens and personal data — Log Lens is built so they stay where they are.
+
+WHAT IT DOES
+
+• Interactive tree — collapse and expand, depth buttons (1 / 2 / 3 / all), lazy rendering that keeps multi-megabyte payloads smooth.
+• Search that sees everything — matches keys AND values, including inside collapsed nodes and inside JSON hidden in strings. "Matches only" hides everything else.
+• Pinned fields — pin the keys you always look up; they appear in a strip at the top of every log with their value and occurrence count. Click to jump between occurrences, ‹ › to step back and forward.
+• str→json — strings that contain JSON (stringified request bodies, session data) are parsed and shown as real subtrees.
+• Copy anything — one value, a whole subtree as pretty JSON, the row's path ($.orders[0].price.total), or an array of similar objects as a ready-to-paste TABLE for spreadsheets and issue trackers.
+• Smart copy — select across rows and press Ctrl/Cmd+C to get real JSON of what you selected, collapsed parts included.
+• Row links — copy a link that opens the page at that exact row, highlighted and scrolled into view.
+• Tooltips — hover a timestamp for your local time and "6 days ago"; big numbers get thousands separators.
+• Paste viewer — paste log text copied from a terminal, ticket, or chat and browse it the same way.
+• Your look — configurable colors and font size, applied live everywhere.
+
+QUICK START
+
+1. Pin Log Lens to the toolbar (puzzle-piece icon → pin).
+2. On any page with JSON: click the icon → "Enhance this page".
+3. For pages you read daily: icon → "Auto-run sites…" and add a URL pattern, e.g. https://logs.example.com/* — those pages will open already enhanced. Wildcards work anywhere in the pattern, including inside the host name (https://*-staging.example.com/*), or tick "Auto-run on every site" once and forget patterns entirely.
+4. To see the original page at any time: the "raw" or "off" buttons in the viewer toolbar.
+
+Full user guide with details on every feature: see the Support link on this listing.
+
+PERMISSIONS
+
+Host access is optional and granted by you, per site, only for auto-run. The extension otherwise uses activeTab/scripting (the toolbar button), storage (your site list, pins and colors — synced with your Chrome profile) and clipboardWrite (the copy buttons).
