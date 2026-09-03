@@ -412,6 +412,26 @@ function t(name, cond) { if (cond) { pass++; console.log('ok - ' + name); } else
   const hit2 = await page6.locator('.ll-current-hit').first().evaluate((n) => n.closest('.ll-row').textContent);
   t('pins: second click moves to the next occurrence (2/3)',
     /2\/3/.test(await page6.locator('.ll-pin-count').first().textContent()) && hit1 !== hit2);
+  t('pins: chip value tracks the current occurrence',
+    (await page6.locator('.ll-pin-val').first().textContent()).includes('989.1'));
+
+  // ‹ steps back; wraps past the start
+  await page6.locator('.ll-pin-nav', { hasText: '‹' }).click();
+  await page6.waitForTimeout(100);
+  const hitBack = await page6.locator('.ll-current-hit').first().evaluate((n) => n.closest('.ll-row').textContent);
+  t('pins: ‹ steps back to 1/3',
+    /1\/3/.test(await page6.locator('.ll-pin-count').first().textContent())
+    && hitBack === hit1
+    && (await page6.locator('.ll-pin-val').first().textContent()).includes('1108.93'));
+  await page6.locator('.ll-pin-nav', { hasText: '‹' }).click();
+  await page6.waitForTimeout(100);
+  t('pins: ‹ from the start wraps to 3/3',
+    /3\/3/.test(await page6.locator('.ll-pin-count').first().textContent())
+    && (await page6.locator('.ll-pin-val').first().textContent()).includes('2000'));
+  await page6.locator('.ll-pin-nav', { hasText: '›' }).click();
+  await page6.waitForTimeout(100);
+  t('pins: › wraps forward to 1/3',
+    /1\/3/.test(await page6.locator('.ll-pin-count').first().textContent()));
 
   // a pinned key absent from this log renders dimmed, never errors
   await page6.evaluate(() => window.LogLens.setPins(['total', 'no_such_key_zz']));

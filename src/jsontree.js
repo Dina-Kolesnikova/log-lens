@@ -786,14 +786,32 @@
           const capped = occ.length >= MAX_MATCHES ? '+' : '';
           const cnt = el('span', 'll-pin-count', occ.length + capped + '✕');
           chip.appendChild(cnt);
-          chip.appendChild(el('span', 'll-pin-val', pinPreview(occ[0].tree.valueAt(occ[0].path))));
-          chip.title = 'Click to jump between the ' + occ.length + capped + ' occurrences of "' + key + '"';
+          const val = el('span', 'll-pin-val', pinPreview(occ[0].tree.valueAt(occ[0].path)));
+          chip.appendChild(val);
+          chip.title = 'Click to jump between the ' + occ.length + capped + ' occurrences of "' + key + '" — ‹ › step back and forward';
+          // one stepper for body-click (+1), ‹ (−1) and › (+1); the chip shows
+          // the CURRENT occurrence's value while stepping, not the first one
+          const step = (delta) => {
+            const n = occ.length;
+            const cur = chipIdx[key] === undefined ? (delta > 0 ? -1 : 0) : chipIdx[key];
+            chipIdx[key] = ((cur + delta) % n + n) % n;
+            const o = occ[chipIdx[key]];
+            cnt.textContent = (chipIdx[key] + 1) + '/' + n + capped;
+            val.textContent = pinPreview(o.tree.valueAt(o.path));
+            jumpTo(o.tree, o.path);
+          };
           chip.addEventListener('click', (e) => {
-            if (e.target.classList && e.target.classList.contains('ll-pin-x')) return;
-            chipIdx[key] = ((chipIdx[key] === undefined ? -1 : chipIdx[key]) + 1) % occ.length;
-            cnt.textContent = (chipIdx[key] + 1) + '/' + occ.length + capped;
-            jumpTo(occ[chipIdx[key]].tree, occ[chipIdx[key]].path);
+            if (e.target.classList && (e.target.classList.contains('ll-pin-x') || e.target.classList.contains('ll-pin-nav'))) return;
+            step(1);
           });
+          const prev = el('button', 'll-pin-nav', '‹');
+          prev.title = 'Previous occurrence';
+          prev.addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
+          const next = el('button', 'll-pin-nav', '›');
+          next.title = 'Next occurrence';
+          next.addEventListener('click', (e) => { e.stopPropagation(); step(1); });
+          chip.appendChild(prev);
+          chip.appendChild(next);
         }
         const x = el('button', 'll-pin-x', '✕');
         x.title = 'Unpin "' + key + '"';

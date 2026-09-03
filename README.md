@@ -63,7 +63,8 @@ Two detection modes, applied automatically:
   "matches only" hides everything else.
 - **Pinned fields (watch strip)**: hover any row → `pin` to keep that key in a
   strip above the tree. Each chip shows the key, how many times it occurs and
-  the first value; clicking it cycles through the occurrences. Keys absent
+  the value at the current stop; click the chip (or ›) for the next
+  occurrence, ‹ for the previous — wrapping at the ends. Keys absent
   from the current page show dimmed as `—`. Pins sync with your Chrome
   profile, so your usual fields greet you on every log page.
 - **Depth buttons** `1 2 3 all −` to expand/collapse in one click. While

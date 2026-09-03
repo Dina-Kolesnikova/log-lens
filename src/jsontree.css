@@ -315,6 +315,16 @@ body.ll-page { margin: 0; background: var(--ll-bg, #f1e8d5); }
 }
 .ll-pin-empty { cursor: default; opacity: 0.55; }
 .ll-pin-empty:hover { background: var(--_pill-bg); }
+.ll-pin-nav {
+  border: 0;
+  background: none;
+  color: var(--_muted);
+  cursor: pointer;
+  font: inherit;
+  padding: 0 1px;
+  line-height: 1;
+}
+.ll-pin-nav:hover { color: var(--_accent); }
 .ll-pin-x {
   border: 0;
   background: none;

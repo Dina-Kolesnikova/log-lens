@@ -125,9 +125,11 @@ fields.*
   chips between the toolbar and the tree.
 - Each chip shows: the **key name** · **how many times it occurs** (`30✕`) ·
   the **first value**.
-- **Click a chip** to jump to the first occurrence; click again for the next
-  (the chip counts `1/30`, `2/30`, …). The row is highlighted and scrolled
-  into view.
+- **Click a chip** to jump to the first occurrence; click again (or **›**) for
+  the next, **‹** for the previous — wrapping at the ends. The chip counts
+  `1/30`, `2/30`, … and its value updates to the occurrence you're on, so
+  stepping through reads like a ticker. Each jump highlights and scrolls to
+  the row.
 - **✕** on the chip unpins. A pinned key that doesn't exist in the current
   log shows dimmed as `—` — harmless, so your pins can stay on across
   different kinds of pages.
