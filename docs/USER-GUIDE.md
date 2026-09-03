@@ -10,16 +10,17 @@ with *when you'd want this*.
 
 ---
 
-## 1. Install
+## 1. Get started
 
-1. Open `chrome://extensions`
-2. Turn on **Developer mode** (top-right toggle)
-3. Click **Load unpacked** and select the Log Lens folder
-4. Pin "Log Lens" to the toolbar (puzzle-piece icon → pin)
+1. Install **Log Lens** from the Chrome Web Store
+2. Pin it to the toolbar: puzzle-piece icon → 📌 next to "Log Lens"
+3. Open any page with JSON on it and click the Log Lens icon → **Enhance this
+   page** — or set up auto-run for your everyday log sites (§2)
 
-After an update: come back to `chrome://extensions`, hit the ↻ reload icon on
-the Log Lens card, and **reopen** any log tabs (an open tab keeps running the
-old version until reloaded).
+Chrome updates extensions automatically; if a log tab was already open when an
+update landed, just reopen the tab.
+
+(Developers installing from source: see the README's unpacked-install steps.)
 
 ---
 
@@ -104,7 +105,7 @@ not the screen.
 
 ### Matches only
 Tick **matches only** to hide everything except the matches and their parent
-chain. Great for questions like "show me every `cancellation` in this log."
+chain. Great for questions like "show me every `status` in this log."
 
 While the filter is on, the depth buttons work *inside your matches*:
 `all` fully expands **every matched subtree** (not the hidden rest of the
@@ -145,7 +146,7 @@ fields.*
 | `copy` | Copy this value (on scalars) |
 | `copy JSON` | Copy this whole object/array, pretty-printed (on containers) |
 | `copy parsed` | On `str→json` rows: copy the *parsed* JSON instead of the raw string |
-| `path` | Copy the row's address, e.g. `$.rooms[0].price.total` |
+| `path` | Copy the row's address, e.g. `$.orders[0].price.total` |
 | `copy table` | On arrays of similar objects: copy a paste-ready table (see §7) |
 | `pin` | Add/remove this key in the watch strip (see §5) |
 | `🔗` | Copy a link that opens this page *at this exact row* (see §8) |
@@ -156,15 +157,15 @@ fields.*
 
 *For evidence tables in bug reports and quick spreadsheet analysis.*
 
-On any array of two or more similar objects (a list of rooms, rates, orders…),
+On any array of two or more similar objects (a list of orders, items, results…),
 hover the array's row → **copy table**. The clipboard gets a tab-separated
 table:
 
 ```
-id    name    price.total    price.currency    tags
-1     King    1108.93        CAD               [ 2 items ]
-2     Twin    989.1          CAD               [ 1 item ]
-3     Suite   2000           USD               [ 0 items ]
+id    name      price.total    price.currency    tags
+1     Basic     19.99          USD               [ 2 items ]
+2     Plus      49.5           USD               [ 1 item ]
+3     Premium   99             EUR               [ 0 items ]
 ```
 
 - Columns are the union of the items' fields; nested values get dot-names
@@ -180,9 +181,9 @@ id    name    price.total    price.currency    tags
 *For "look at THIS field" messages to teammates.*
 
 Hover a row → **🔗** copies the page URL with the row's address attached
-(`…#ll=$.rooms[0].price.total`). Anyone opening that link (with Log Lens
+(`…#ll=$.orders[0].price.total`). Anyone opening that link (with Log Lens
 installed) lands on the page with that row already rendered, highlighted, and
-scrolled into view — no "scroll down to the third room, then…" instructions.
+scrolled into view — no "scroll down to the third item, then…" instructions.
 
 ---
 
@@ -234,7 +235,7 @@ your Chrome profile. **reset to defaults** restores the stock look.
 |---|---|
 | A JSON block on some page isn't detected | Toolbar → **Enhance this page**; if it's a viewer you use daily, open an issue with the page structure |
 | Auto-run stopped on a site | Options page — the row will say *"permission missing"*; click **grant** |
-| New version doesn't behave differently | Reload the extension at `chrome://extensions` AND reopen the log tab |
+| A new version doesn't seem active on an already-open tab | Reopen the tab — pages keep running the version that was loaded with them |
 | "expanded first 25000 nodes" note | You hit the expand-all cap on a giant payload — search/pins still see everything; use **matches only** + `all` to fully expand just what you care about |
 | Page is slow after ticking matches-only | Thousands of matches are being rendered; narrow the search first |
 | The OFF pill is in the way | Drag it anywhere; it only exists while Log Lens is off on that tab |
